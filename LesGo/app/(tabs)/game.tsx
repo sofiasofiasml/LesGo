@@ -4,18 +4,30 @@ import { Text, View } from '@/components/Themed';
 import { GAME_CARDS, Card } from '@/constants/GameData';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
+// Fisher-Yates Shuffle Algorithm
+const shuffleArray = (array: Card[]) => {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+};
+
 export default function GameScreen() {
     const [gameState, setGameState] = useState<'setup' | 'playing'>('setup');
     const [players, setPlayers] = useState<string[]>([]);
     const [newPlayerName, setNewPlayerName] = useState('');
     const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
 
+    const [deck, setDeck] = useState<Card[]>([]);
     const [currentCardIndex, setCurrentCardIndex] = useState(0);
     const [modalVisible, setModalVisible] = useState(false);
+    const [drinkMessage, setDrinkMessage] = useState('¡BEBE!'); // Initial default
+
     const colorScheme = useColorScheme();
 
     const isDark = colorScheme === 'dark';
-    // Lesbian Flag Colors
     const colors = {
         orange: '#D52D00',
         lightOrange: '#FF9A56',
@@ -42,8 +54,10 @@ export default function GameScreen() {
 
     const startGame = () => {
         if (players.length > 0) {
-            setGameState('playing');
+            setDeck(shuffleArray(GAME_CARDS)); // Shuffle on start
+            setCurrentCardIndex(0);
             setCurrentPlayerIndex(0);
+            setGameState('playing');
         }
     };
 
@@ -54,19 +68,23 @@ export default function GameScreen() {
     };
 
     // --- Game Logic ---
-    const currentCard: Card = GAME_CARDS[currentCardIndex % GAME_CARDS.length];
+    // Ensure deck has cards, fallback to base list if empty (shouldn't happen after start)
+    const activeDeck = deck.length > 0 ? deck : GAME_CARDS;
+    const currentCard: Card = activeDeck[currentCardIndex % activeDeck.length];
     const currentPlayer = players[currentPlayerIndex];
 
     const nextTurn = () => {
         setCurrentPlayerIndex((prev) => (prev + 1) % players.length);
-        setCurrentCardIndex((prev) => (prev + 1) % GAME_CARDS.length);
+        setCurrentCardIndex((prev) => (prev + 1) % activeDeck.length);
+
+        // Reshuffle if we looped (optional, but keeps it fresh)
+        if ((currentCardIndex + 1) % activeDeck.length === 0) {
+            setDeck(shuffleArray(GAME_CARDS));
+        }
     };
 
-    const handleNextCard = () => {
-        nextTurn();
-    };
-
-    const handleDrink = () => {
+    const handleDrink = (customMessage?: string) => {
+        setDrinkMessage(customMessage || '¡BEBE!');
         setModalVisible(true);
     };
 
@@ -75,15 +93,42 @@ export default function GameScreen() {
         nextTurn();
     };
 
+    const handleChoice = (choice: 'yes' | 'no') => {
+        if (currentCard.drinkTrigger === choice) {
+            handleDrink(currentCard.drinkAction);
+        } else {
+            nextTurn();
+        }
+    };
+
+    const handleContinue = () => {
+        if (currentCard.drinkTrigger === 'always') {
+            handleDrink(currentCard.drinkAction);
+        } else {
+            nextTurn();
+        }
+    };
+
+    // Render logic based on mode
+    const renderIcon = () => {
+        switch (currentCard.type) {
+            case 'question': return <FontAwesome name="question-circle" size={40} color={colors.lightOrange} />;
+            case 'challenge': return <FontAwesome name="bolt" size={40} color={colors.pink} />;
+            case 'rule': return <FontAwesome name="gavel" size={40} color="#9b59b6" />; // Purple for rules
+            case 'viral': return <FontAwesome name="hashtag" size={40} color="#2ecc71" />; // Green for viral/status
+            default: return <FontAwesome name="gamepad" size={40} color={colors.pink} />;
+        }
+    }
+
+    // --- RENDER ---
     if (gameState === 'setup') {
         return (
             <View style={styles.container}>
                 <Text style={styles.header}>Jugadoras</Text>
-
                 <View style={styles.inputContainer}>
                     <TextInput
                         style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text }]}
-                        placeholder="Nombre de la jugadora"
+                        placeholder="Nombre"
                         placeholderTextColor={isDark ? '#aaa' : '#666'}
                         value={newPlayerName}
                         onChangeText={setNewPlayerName}
@@ -93,7 +138,6 @@ export default function GameScreen() {
                         <FontAwesome name="plus" size={20} color="white" />
                     </TouchableOpacity>
                 </View>
-
                 <ScrollView style={styles.playerList} contentContainerStyle={{ gap: 10 }}>
                     {players.map((player, index) => (
                         <View key={index} style={[styles.playerItem, { backgroundColor: colors.cardBackground }]}>
@@ -107,7 +151,6 @@ export default function GameScreen() {
                         <Text style={{ textAlign: 'center', opacity: 0.5, marginTop: 20 }}>Añade jugadoras para empezar</Text>
                     )}
                 </ScrollView>
-
                 <TouchableOpacity
                     style={[styles.startButton, { backgroundColor: players.length > 0 ? colors.orange : '#ccc' }]}
                     onPress={startGame}
@@ -128,26 +171,42 @@ export default function GameScreen() {
 
             <View style={[styles.card, { backgroundColor: colors.cardBackground }]}>
                 <View style={styles.iconContainer}>
-                    {currentCard.type === 'question' ? (
-                        <FontAwesome name="question-circle" size={40} color={colors.lightOrange} />
-                    ) : (
-                        <FontAwesome name="bolt" size={40} color={colors.pink} />
-                    )}
+                    {renderIcon()}
                 </View>
                 <Text style={[styles.cardText, { color: colors.text }]}>{currentCard.text}</Text>
                 <Text style={[styles.cardType, { color: colors.darkPink }]}>{currentCard.type.toUpperCase()}</Text>
             </View>
 
             <View style={styles.buttonContainer}>
-                {/* NO Button -> Drink */}
-                <TouchableOpacity style={[styles.button, { backgroundColor: colors.orange }]} onPress={handleDrink}>
-                    <Text style={styles.buttonText}>NO</Text>
-                </TouchableOpacity>
+                {currentCard.mode === 'binary' ? (
+                    <>
+                        {/* NO Logic */}
+                        <TouchableOpacity
+                            style={[styles.button, { backgroundColor: colors.orange }]}
+                            onPress={() => handleChoice('no')}
+                        >
+                            <Text style={styles.buttonText}>NO</Text>
+                        </TouchableOpacity>
 
-                {/* SI / HECHO Button -> Safe */}
-                <TouchableOpacity style={[styles.button, { backgroundColor: colors.pink }]} onPress={handleNextCard}>
-                    <Text style={styles.buttonText}>SI / HECHO</Text>
-                </TouchableOpacity>
+                        {/* YES Logic */}
+                        <TouchableOpacity
+                            style={[styles.button, { backgroundColor: colors.pink }]}
+                            onPress={() => handleChoice('yes')}
+                        >
+                            <Text style={styles.buttonText}>SÍ / HECHO</Text>
+                        </TouchableOpacity>
+                    </>
+                ) : (
+                    /* Statement / Rule Handling */
+                    <TouchableOpacity
+                        style={[styles.button, { backgroundColor: colors.pink }]}
+                        onPress={handleContinue}
+                    >
+                        <Text style={styles.buttonText}>
+                            {currentCard.mode === 'rule' ? 'ACEPTO' : 'SIGUIENTE'}
+                        </Text>
+                    </TouchableOpacity>
+                )}
             </View>
 
             <TouchableOpacity style={styles.resetButton} onPress={resetGame}>
@@ -163,7 +222,7 @@ export default function GameScreen() {
             >
                 <View style={styles.modalView}>
                     <View style={styles.modalContent}>
-                        <Text style={styles.drinkText}>¡BEBE!</Text>
+                        <Text style={styles.drinkText}>{drinkMessage}</Text>
                         <Text style={styles.victimText}>{currentPlayer}</Text>
                         <FontAwesome name="glass" size={80} color={colors.darkPink} />
                         <TouchableOpacity
@@ -336,6 +395,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#D52D00', // Deep Orange
         marginBottom: 10,
+        textAlign: 'center',
     },
     victimText: {
         fontSize: 24,
