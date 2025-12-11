@@ -52,6 +52,8 @@ export default function TabLayout() {
         options={{
           title: 'Juego',
           tabBarIcon: ({ color }) => <TabBarIcon name="gamepad" color={color} />,
+          headerShown: false,
+          tabBarStyle: { display: 'none' },
         }}
       />
     </Tabs>
