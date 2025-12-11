@@ -16,7 +16,7 @@ const shuffleArray = (array: Card[]) => {
 };
 
 export default function GameScreen() {
-    const [gameState, setGameState] = useState<'setup' | 'playing' | 'victory'>('setup');
+    const [gameState, setGameState] = useState<'config' | 'setup' | 'playing' | 'victory'>('setup');
     const [players, setPlayers] = useState<string[]>([]);
     const [newPlayerName, setNewPlayerName] = useState('');
     const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
@@ -40,6 +40,23 @@ export default function GameScreen() {
     const [showExitConfirm, setShowExitConfirm] = useState(false);
     const [currentRound, setCurrentRound] = useState(1);
     const [showInfoModal, setShowInfoModal] = useState(false);
+
+    // Game configuration
+    const [selectedCategories, setSelectedCategories] = useState<string[]>(['romantic', 'spicy', 'fun', 'general']);
+    const [selectedIntensity, setSelectedIntensity] = useState<'soft' | 'medium' | 'spicy'>('medium');
+
+    // Custom cards
+    const [customCards, setCustomCards] = useState<Card[]>([]);
+    const [showCustomCardModal, setShowCustomCardModal] = useState(false);
+    const [showConfigModal, setShowConfigModal] = useState(false);
+    const [newCustomCard, setNewCustomCard] = useState<Card>({
+        id: '',
+        text: '',
+        type: 'question',
+        mode: 'binary',
+        category: 'general',
+        intensity: 'medium',
+    });
 
     const colorScheme = useColorScheme();
 
@@ -96,9 +113,60 @@ export default function GameScreen() {
         }
     };
 
-    // Load players on component mount
+    // Custom Cards AsyncStorage functions
+    const saveCustomCardsToStorage = async (cards: Card[]) => {
+        try {
+            await AsyncStorage.setItem('lesgo_custom_cards', JSON.stringify(cards));
+        } catch (error) {
+            console.error('Error saving custom cards:', error);
+        }
+    };
+
+    const loadCustomCardsFromStorage = async () => {
+        try {
+            const savedCards = await AsyncStorage.getItem('lesgo_custom_cards');
+            if (savedCards) {
+                setCustomCards(JSON.parse(savedCards));
+            }
+        } catch (error) {
+            console.error('Error loading custom cards:', error);
+        }
+    };
+
+    const addCustomCard = async () => {
+        if (!newCustomCard.text.trim()) return;
+
+        const card: Card = {
+            ...newCustomCard,
+            id: Date.now().toString(),
+        };
+
+        const updatedCards = [...customCards, card];
+        setCustomCards(updatedCards);
+        await saveCustomCardsToStorage(updatedCards);
+
+        // Reset form
+        setNewCustomCard({
+            id: '',
+            text: '',
+            type: 'question',
+            mode: 'binary',
+            category: 'general',
+            intensity: 'medium',
+        });
+        setShowCustomCardModal(false);
+    };
+
+    const deleteCustomCard = async (id: string) => {
+        const updatedCards = customCards.filter(card => card.id !== id);
+        setCustomCards(updatedCards);
+        await saveCustomCardsToStorage(updatedCards);
+    };
+
+    // Load players and custom cards on component mount
     useEffect(() => {
         loadPlayersFromStorage();
+        loadCustomCardsFromStorage();
     }, []);
 
     const startGame = () => {
@@ -345,15 +413,316 @@ export default function GameScreen() {
         }
     }
 
+    const renderConfigAndCustomModals = () => (
+        <>
+            {/* CONFIG MODAL */}
+            <Modal
+                animationType="slide"
+                transparent={false}
+                visible={showConfigModal}
+                onRequestClose={() => setShowConfigModal(false)}
+            >
+                <View style={[styles.container, { paddingTop: 15 }]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                        <Text style={[styles.header, { color: colors.darkPink, marginBottom: 0 }]}>Configuración 🎮</Text>
+                        <TouchableOpacity onPress={() => setShowConfigModal(false)} style={{ padding: 10 }}>
+                            <FontAwesome name="close" size={24} color={colors.text} />
+                        </TouchableOpacity>
+                    </View>
+
+                    <Text style={[styles.subheader, { color: colors.text, marginBottom: 20 }]}>Personaliza tu experiencia</Text>
+
+                    <ScrollView style={{ width: '100%' }} showsVerticalScrollIndicator={false}>
+                        {/* Categories Selection */}
+                        <Text style={{ color: colors.text, fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>
+                            🏷️ Categorías
+                        </Text>
+                        <Text style={{ color: colors.text, opacity: 0.7, fontSize: 13, marginBottom: 10 }}>
+                            Selecciona las categorías que quieres incluir
+                        </Text>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 25 }}>
+                            {[
+                                { key: 'romantic', label: 'Romántica', icon: '💕', color: colors.pink },
+                                { key: 'spicy', label: 'Picante', icon: '🌶️', color: colors.orange },
+                                { key: 'fun', label: 'Divertida', icon: '🎉', color: colors.lightOrange },
+                                { key: 'general', label: 'General', icon: '⭐', color: colors.purple },
+                            ].map(cat => (
+                                <TouchableOpacity
+                                    key={cat.key}
+                                    style={{
+                                        flex: 1,
+                                        minWidth: '45%',
+                                        backgroundColor: selectedCategories.includes(cat.key) ? cat.color : colors.inputBackground,
+                                        paddingVertical: 15,
+                                        paddingHorizontal: 10,
+                                        borderRadius: 12,
+                                        borderWidth: 2,
+                                        borderColor: selectedCategories.includes(cat.key) ? cat.color : 'transparent',
+                                        alignItems: 'center',
+                                    }}
+                                    onPress={() => {
+                                        if (selectedCategories.includes(cat.key)) {
+                                            setSelectedCategories(selectedCategories.filter(c => c !== cat.key));
+                                        } else {
+                                            setSelectedCategories([...selectedCategories, cat.key]);
+                                        }
+                                    }}
+                                >
+                                    <Text style={{ fontSize: 28, marginBottom: 5 }}>{cat.icon}</Text>
+                                    <Text style={{ color: selectedCategories.includes(cat.key) ? 'white' : colors.text, fontSize: 13, fontWeight: '600' }}>
+                                        {cat.label}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        {/* Intensity Selection */}
+                        <Text style={{ color: colors.text, fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>
+                            🔥 Intensidad
+                        </Text>
+                        <Text style={{ color: colors.text, opacity: 0.7, fontSize: 13, marginBottom: 10 }}>
+                            ¿Qué tan atrevidas quieres las cartas?
+                        </Text>
+                        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 25 }}>
+                            {[
+                                { key: 'soft', label: 'Suave', icon: '😊', desc: 'Para empezar' },
+                                { key: 'medium', label: 'Medio', icon: '😏', desc: 'Equilibrado' },
+                                { key: 'spicy', label: 'Picante', icon: '🔥', desc: 'Sin límites' },
+                            ].map(level => (
+                                <TouchableOpacity
+                                    key={level.key}
+                                    style={{
+                                        flex: 1,
+                                        backgroundColor: selectedIntensity === level.key ? colors.darkPink : colors.inputBackground,
+                                        paddingVertical: 15,
+                                        borderRadius: 12,
+                                        borderWidth: 2,
+                                        borderColor: selectedIntensity === level.key ? colors.darkPink : 'transparent',
+                                        alignItems: 'center',
+                                    }}
+                                    onPress={() => setSelectedIntensity(level.key as any)}
+                                >
+                                    <Text style={{ fontSize: 28, marginBottom: 5 }}>{level.icon}</Text>
+                                    <Text style={{ color: selectedIntensity === level.key ? 'white' : colors.text, fontSize: 13, fontWeight: '600' }}>
+                                        {level.label}
+                                    </Text>
+                                    <Text style={{ color: selectedIntensity === level.key ? 'white' : colors.text, fontSize: 10, opacity: 0.7, marginTop: 2 }}>
+                                        {level.desc}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        {/* Custom Cards Button */}
+                        <TouchableOpacity
+                            style={[styles.button, { backgroundColor: colors.purple, marginBottom: 15 }]}
+                            onPress={() => setShowCustomCardModal(true)}
+                        >
+                            <Text style={styles.buttonText}>➕ Añadir Cartas Personalizadas ({customCards.length})</Text>
+                        </TouchableOpacity>
+                    </ScrollView>
+
+                    {/* Button Removed */}
+                </View>
+            </Modal>
+
+            {/* Custom Card Modal - Always available, displays on top */}
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={showCustomCardModal}
+                onRequestClose={() => setShowCustomCardModal(false)}
+            >
+                <View style={styles.modalView}>
+                    <View style={[styles.modalContent, { backgroundColor: colors.modalBackground, width: '90%', maxHeight: '90%', padding: 20 }]}>
+                        <View style={[styles.modalHeader, { borderBottomColor: colors.purple, marginBottom: 15 }]}>
+                            <FontAwesome name="plus-circle" size={28} color={colors.purple} />
+                            <Text style={[styles.modalTitle, { color: colors.text, fontSize: 20 }]}>Crear Carta</Text>
+                        </View>
+
+                        <ScrollView style={{ width: '100%' }} showsVerticalScrollIndicator={true}>
+                            <View style={{ paddingHorizontal: 5 }}>
+                                <Text style={{ color: colors.text, marginBottom: 8, fontWeight: '700', fontSize: 14 }}>📝 Texto:</Text>
+                                <TextInput
+                                    style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, height: 90, textAlignVertical: 'top', padding: 12, fontSize: 14 }]}
+                                    placeholder="Ej: Yo nunca he..."
+                                    placeholderTextColor={colors.text + '80'}
+                                    value={newCustomCard.text}
+                                    onChangeText={(text) => setNewCustomCard({ ...newCustomCard, text })}
+                                    multiline
+                                />
+
+                                <Text style={{ color: colors.text, marginTop: 16, marginBottom: 8, fontWeight: '700', fontSize: 14 }}>🎯 Tipo:</Text>
+                                <View style={{ flexDirection: 'row', gap: 8 }}>
+                                    {[
+                                        { key: 'question', label: 'Pregunta', icon: '❓' },
+                                        { key: 'challenge', label: 'Reto', icon: '🎯' },
+                                        { key: 'rule', label: 'Regla', icon: '📜' },
+                                    ].map(type => (
+                                        <TouchableOpacity
+                                            key={type.key}
+                                            style={{
+                                                flex: 1,
+                                                backgroundColor: newCustomCard.type === type.key ? colors.pink : colors.inputBackground,
+                                                paddingVertical: 10,
+                                                borderRadius: 10,
+                                                borderWidth: 2,
+                                                borderColor: newCustomCard.type === type.key ? colors.pink : 'transparent',
+                                                alignItems: 'center',
+                                            }}
+                                            onPress={() => setNewCustomCard({ ...newCustomCard, type: type.key as any })}
+                                        >
+                                            <Text style={{ fontSize: 20, marginBottom: 2 }}>{type.icon}</Text>
+                                            <Text style={{ color: newCustomCard.type === type.key ? 'white' : colors.text, fontSize: 10, fontWeight: '600' }}>
+                                                {type.label}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+
+                                <Text style={{ color: colors.text, marginTop: 16, marginBottom: 8, fontWeight: '700', fontSize: 14 }}>🏷️ Categoría:</Text>
+                                <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                                    {[
+                                        { key: 'romantic', label: 'Romántica', icon: '💕', color: colors.pink },
+                                        { key: 'spicy', label: 'Picante', icon: '🌶️', color: colors.orange },
+                                        { key: 'fun', label: 'Divertida', icon: '🎉', color: colors.lightOrange },
+                                        { key: 'general', label: 'General', icon: '⭐', color: colors.purple },
+                                    ].map(cat => (
+                                        <TouchableOpacity
+                                            key={cat.key}
+                                            style={{
+                                                flex: 1,
+                                                minWidth: '45%',
+                                                backgroundColor: newCustomCard.category === cat.key ? cat.color : colors.inputBackground,
+                                                paddingVertical: 10,
+                                                borderRadius: 10,
+                                                borderWidth: 2,
+                                                borderColor: newCustomCard.category === cat.key ? cat.color : 'transparent',
+                                                alignItems: 'center',
+                                            }}
+                                            onPress={() => setNewCustomCard({ ...newCustomCard, category: cat.key as any })}
+                                        >
+                                            <Text style={{ fontSize: 20, marginBottom: 2 }}>{cat.icon}</Text>
+                                            <Text style={{ color: newCustomCard.category === cat.key ? 'white' : colors.text, fontSize: 10, fontWeight: '600' }}>
+                                                {cat.label}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+
+                                <Text style={{ color: colors.text, marginTop: 16, marginBottom: 8, fontWeight: '700', fontSize: 14 }}>🔥 Intensidad:</Text>
+                                <View style={{ flexDirection: 'row', gap: 8 }}>
+                                    {[
+                                        { key: 'soft', label: 'Suave', icon: '😊' },
+                                        { key: 'medium', label: 'Medio', icon: '😏' },
+                                        { key: 'spicy', label: 'Picante', icon: '🔥' },
+                                    ].map(level => (
+                                        <TouchableOpacity
+                                            key={level.key}
+                                            style={{
+                                                flex: 1,
+                                                backgroundColor: newCustomCard.intensity === level.key ? colors.darkPink : colors.inputBackground,
+                                                paddingVertical: 10,
+                                                borderRadius: 10,
+                                                borderWidth: 2,
+                                                borderColor: newCustomCard.intensity === level.key ? colors.darkPink : 'transparent',
+                                                alignItems: 'center',
+                                            }}
+                                            onPress={() => setNewCustomCard({ ...newCustomCard, intensity: level.key as any })}
+                                        >
+                                            <Text style={{ fontSize: 20, marginBottom: 2 }}>{level.icon}</Text>
+                                            <Text style={{ color: newCustomCard.intensity === level.key ? 'white' : colors.text, fontSize: 10, fontWeight: '600' }}>
+                                                {level.label}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+
+                                {customCards.length > 0 && (
+                                    <View style={{ marginTop: 20, flex: 1 }}>
+                                        <Text style={{ color: colors.text, marginBottom: 10, fontWeight: '700', fontSize: 14 }}>
+                                            📚 Tus cartas ({customCards.length}):
+                                        </Text>
+                                        <View style={{ backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)', borderRadius: 12, padding: 5, maxHeight: 200 }}>
+                                            <ScrollView nestedScrollEnabled={true} style={{ width: '100%' }}>
+                                                {customCards.map((card, index) => (
+                                                    <View key={card.id} style={{
+                                                        backgroundColor: colors.cardBackground,
+                                                        marginBottom: 8,
+                                                        padding: 12,
+                                                        borderRadius: 10,
+                                                        flexDirection: 'row',
+                                                        alignItems: 'center',
+                                                        borderLeftWidth: 4,
+                                                        borderLeftColor:
+                                                            card.category === 'romantic' ? colors.pink :
+                                                                card.category === 'spicy' ? colors.orange :
+                                                                    card.category === 'fun' ? colors.lightOrange :
+                                                                        colors.purple,
+                                                        elevation: 2,
+                                                        shadowColor: "#000",
+                                                        shadowOffset: { width: 0, height: 1 },
+                                                        shadowOpacity: 0.2,
+                                                        shadowRadius: 1.41,
+                                                    }}>
+                                                        <Text style={{ marginRight: 10, fontSize: 16 }}>
+                                                            {card.type === 'question' ? '❓' : card.type === 'challenge' ? '⚡' : '📜'}
+                                                        </Text>
+                                                        <View style={{ flex: 1 }}>
+                                                            <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600' }} numberOfLines={2}>
+                                                                {card.text}
+                                                            </Text>
+                                                            <Text style={{ color: colors.text, fontSize: 10, opacity: 0.6, marginTop: 2 }}>
+                                                                {(card.category || 'general').toUpperCase()} • {(card.intensity || 'medium').toUpperCase()}
+                                                            </Text>
+                                                        </View>
+                                                        <TouchableOpacity onPress={() => deleteCustomCard(card.id)} style={{ padding: 8, marginLeft: 8 }}>
+                                                            <FontAwesome name="trash" size={18} color={colors.orange} />
+                                                        </TouchableOpacity>
+                                                    </View>
+                                                ))}
+                                            </ScrollView>
+                                        </View>
+                                    </View>
+                                )}
+                            </View>
+                        </ScrollView>
+
+                        <View style={{ flexDirection: 'row', gap: 10, marginTop: 15, width: '100%' }}>
+                            <TouchableOpacity
+                                style={[styles.modalButton, { backgroundColor: colors.inputBackground, flex: 1 }]}
+                                onPress={() => setShowCustomCardModal(false)}
+                            >
+                                <Text style={[styles.buttonText, { color: colors.text }]}>Cancelar</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.modalButton, { backgroundColor: colors.pink, flex: 1, opacity: newCustomCard.text.trim() ? 1 : 0.5 }]}
+                                onPress={addCustomCard}
+                                disabled={!newCustomCard.text.trim()}
+                            >
+                                <Text style={styles.buttonText}>Añadir ✓</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+        </>
+    );
+
     // --- RENDER ---
     if (gameState === 'setup') {
         return (
             <View style={styles.container}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 20 }}>
                     <Text style={[styles.header, { color: colors.darkPink }]}>LesGo 🌈</Text>
-                    <TouchableOpacity onPress={() => setShowInfoModal(true)} style={styles.infoButtonTop}>
-                        <FontAwesome name="info-circle" size={28} color={colors.darkPink} />
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                        <TouchableOpacity onPress={() => setShowConfigModal(true)} style={{ padding: 10 }}>
+                            <FontAwesome name="cog" size={28} color={colors.purple} />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setShowInfoModal(true)} style={styles.infoButtonTop}>
+                            <FontAwesome name="info-circle" size={28} color={colors.darkPink} />
+                        </TouchableOpacity>
+                    </View>
                 </View>
                 <Text style={[styles.subheader, { color: colors.text }]}>Añadir Jugadoras</Text>
                 <View style={styles.inputContainer}>
@@ -447,19 +816,23 @@ export default function GameScreen() {
                         </View>
                     </View>
                 </Modal>
-            </View>
+                {renderConfigAndCustomModals()}
+            </View >
         );
     }
 
     if (gameState === 'victory') {
         return (
-            <VictoryScreen
-                winner={winner}
-                scores={playerScores}
-                onContinue={continueGame}
-                onReset={resetGame}
-                colors={colors}
-            />
+            <>
+                <VictoryScreen
+                    winner={winner}
+                    scores={playerScores}
+                    onContinue={continueGame}
+                    onReset={resetGame}
+                    colors={colors}
+                />
+                {renderConfigAndCustomModals()}
+            </>
         );
     }
 
@@ -683,6 +1056,8 @@ export default function GameScreen() {
                     </View>
                 </View>
             </Modal>
+
+            {renderConfigAndCustomModals()}
         </View>
     );
 }

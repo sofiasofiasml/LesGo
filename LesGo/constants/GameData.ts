@@ -7,6 +7,8 @@ export interface Card {
     drinkAction?: string; // e.g. "Bebe 2 tragos"
     points?: number; // Points awarded for this card (default 1)
     specialEffect?: 'double' | 'reverse' | 'skip' | 'steal'; // Special game mechanics
+    category?: 'romantic' | 'spicy' | 'fun' | 'general';
+    intensity?: 'soft' | 'medium' | 'spicy';
 }
 
 export const GAME_CARDS: Card[] = [
