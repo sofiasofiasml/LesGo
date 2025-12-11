@@ -222,19 +222,48 @@ export default function GameScreen() {
                 setSelectionAction('steal');
                 setPlayerSelectionModal(true);
                 return; // Don't proceed to nextTurn yet
+            case 'bonus':
+                // Add 5 bonus points
+                addPoints(currentPlayer, 5);
+                break;
+            case 'gift':
+                setSelectionAction('gift');
+                setPlayerSelectionModal(true);
+                return; // Don't proceed to nextTurn yet
+            case 'bomb':
+                // All players lose 3 points except current player
+                setPlayerScores(prev => {
+                    const newScores = { ...prev };
+                    players.forEach(player => {
+                        if (player !== currentPlayer) {
+                            newScores[player] = (newScores[player] || 0) - 3;
+                        }
+                    });
+                    return newScores;
+                });
+                break;
+            case 'star':
+                // Double points if current player has less than 20
+                const currentPoints = playerScores[currentPlayer] || 0;
+                if (currentPoints < 20 && currentPoints > 0) {
+                    addPoints(currentPlayer, currentPoints); // Add same amount to double
+                }
+                break;
         }
     };
 
     const handlePlayerSelection = (selectedPlayer: string) => {
         if (selectionAction === 'steal') {
-            // Steal 10 points
+            // Steal 10 points (can go negative)
             setPlayerScores(prev => {
                 const newScores = { ...prev };
-                const stolen = Math.min(10, newScores[selectedPlayer] || 0);
-                newScores[selectedPlayer] = (newScores[selectedPlayer] || 0) - stolen;
-                newScores[currentPlayer] = (newScores[currentPlayer] || 0) + stolen;
+                newScores[selectedPlayer] = (newScores[selectedPlayer] || 0) - 10; // Can go negative
+                newScores[currentPlayer] = (newScores[currentPlayer] || 0) + 10;
                 return newScores;
             });
+        } else if (selectionAction === 'gift') {
+            // Gift 5 points to selected player
+            addPoints(selectedPlayer, 5);
         }
         setPlayerSelectionModal(false);
         setSelectionAction(null);
@@ -252,10 +281,21 @@ export default function GameScreen() {
     };
 
     const handleChoice = (choice: 'yes' | 'no') => {
-        // Award points
+        // Points logic based on card type and answer
         const basePoints = currentCard.points || 1;
         const finalPoints = doublePoints ? basePoints * 2 : basePoints;
-        addPoints(currentPlayer, finalPoints);
+
+        // For "Yo nunca" questions: Yes = you did it (lose points), No = you didn't (gain points)
+        if (currentCard.type === 'question') {
+            if (choice === 'no') {
+                addPoints(currentPlayer, finalPoints); // Didn't do it, gain points
+            } else {
+                addPoints(currentPlayer, -finalPoints); // Did it, lose points
+            }
+        } else {
+            // For challenges and other types, always gain points
+            addPoints(currentPlayer, finalPoints);
+        }
 
         // Handle special effects
         if (currentCard.specialEffect) {
@@ -273,7 +313,7 @@ export default function GameScreen() {
     };
 
     const handleContinue = () => {
-        // Award points
+        // Award points for statement/rule cards
         const basePoints = currentCard.points || 1;
         const finalPoints = doublePoints ? basePoints * 2 : basePoints;
         addPoints(currentPlayer, finalPoints);
@@ -621,8 +661,10 @@ export default function GameScreen() {
                 <View style={styles.modalView}>
                     <View style={[styles.modalContent, { backgroundColor: colors.modalBackground }]}>
                         <View style={[styles.modalHeader, { borderBottomColor: colors.orange }]}>
-                            <FontAwesome name="hand-paper-o" size={30} color={colors.orange} />
-                            <Text style={[styles.modalTitle, { color: colors.text }]}>Elige una jugadora</Text>
+                            <FontAwesome name={selectionAction === 'gift' ? "gift" : "hand-paper-o"} size={30} color={colors.orange} />
+                            <Text style={[styles.modalTitle, { color: colors.text }]}>
+                                {selectionAction === 'gift' ? 'Regala 5 puntos' : 'Elige una jugadora'}
+                            </Text>
                         </View>
                         <ScrollView style={{ width: '100%', maxHeight: 300, marginTop: 10 }}>
                             {players.filter(p => p !== currentPlayer).map((player, index) => (
