@@ -38,6 +38,7 @@ export default function GameScreen() {
     const [winner, setWinner] = useState<string | null>(null);
     const [showExitConfirm, setShowExitConfirm] = useState(false);
     const [currentRound, setCurrentRound] = useState(1);
+    const [showInfoModal, setShowInfoModal] = useState(false);
 
     const colorScheme = useColorScheme();
 
@@ -276,7 +277,13 @@ export default function GameScreen() {
     if (gameState === 'setup') {
         return (
             <View style={styles.container}>
-                <Text style={styles.header}>Jugadoras</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 20 }}>
+                    <Text style={[styles.header, { color: colors.darkPink }]}>LesGo 🌈</Text>
+                    <TouchableOpacity onPress={() => setShowInfoModal(true)} style={styles.infoButtonTop}>
+                        <FontAwesome name="info-circle" size={28} color={colors.darkPink} />
+                    </TouchableOpacity>
+                </View>
+                <Text style={[styles.subheader, { color: colors.text }]}>Añadir Jugadoras</Text>
                 <View style={styles.inputContainer}>
                     <TextInput
                         style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text }]}
@@ -308,8 +315,66 @@ export default function GameScreen() {
                     onPress={startGame}
                     disabled={players.length === 0}
                 >
-                    <Text style={styles.startButtonText}>COMENZAR JUEGO</Text>
+                    <Text style={styles.startButtonText}>EMPEZAR JUEGO</Text>
                 </TouchableOpacity>
+
+                {/* Info Modal - Only in Setup Screen */}
+                <Modal
+                    animationType="slide"
+                    transparent={true}
+                    visible={showInfoModal}
+                    onRequestClose={() => setShowInfoModal(false)}
+                >
+                    <View style={styles.modalView}>
+                        <View style={[styles.modalContent, { backgroundColor: colors.modalBackground, maxHeight: '80%' }]}>
+                            <View style={[styles.modalHeader, { borderBottomColor: colors.purple }]}>
+                                <FontAwesome name="heart" size={30} color={colors.pink} />
+                                <Text style={[styles.modalTitle, { color: colors.text }]}>Sobre el Juego</Text>
+                            </View>
+                            <ScrollView style={{ width: '100%', marginTop: 15 }} showsVerticalScrollIndicator={true}>
+                                <Text style={[styles.infoText, { color: colors.text }]}>
+                                    <Text style={{ fontWeight: 'bold', fontSize: 18 }}>LesGo - Yo Nunca (Versión Bollera)</Text>
+                                </Text>
+
+                                <Text style={[styles.infoText, { color: colors.text, marginTop: 15 }]}>
+                                    Creado con 🌈 por <Text style={{ fontWeight: 'bold', color: colors.pink }}>Sofía Martínez López</Text>
+                                </Text>
+
+                                <Text style={[styles.infoSection, { color: colors.text }]}>Sobre el juego</Text>
+                                <Text style={[styles.infoText, { color: colors.text }]}>
+                                    Este es un juego de fiesta diseñado para divertirse entre amigas. Incluye preguntas, retos y mecánicas especiales inspiradas en la cultura lésbica y queer.
+                                </Text>
+
+                                <Text style={[styles.infoSection, { color: colors.text }]}>Disclaimer Legal</Text>
+                                <Text style={[styles.infoText, { color: colors.text }]}>
+                                    • Este juego NO promueve el consumo de alcohol.{'\n'}
+                                    • Puedes jugarlo con cualquier tipo de bebida (refrescos, agua, zumos, etc.).{'\n'}
+                                    • Si decides jugar con alcohol, hazlo de forma responsable.{'\n'}
+                                    • No conduzcas si has bebido.{'\n'}
+                                    • Respeta siempre los límites de cada persona.
+                                </Text>
+
+                                <Text style={[styles.infoSection, { color: colors.text }]}>Cómo jugar</Text>
+                                <Text style={[styles.infoText, { color: colors.text }]}>
+                                    1. Añade jugadoras (mínimo 2){'\n'}
+                                    2. Las cartas especiales aparecen desde la ronda 2{'\n'}
+                                    3. Primera en llegar a 100 puntos gana{'\n'}
+                                    4. ¡Diviértete!
+                                </Text>
+
+                                <Text style={[styles.infoText, { color: colors.text, marginTop: 20, fontSize: 12, opacity: 0.6, textAlign: 'center' }]}>
+                                    Versión 1.0 • 2024
+                                </Text>
+                            </ScrollView>
+                            <TouchableOpacity
+                                style={[styles.modalButton, { backgroundColor: colors.pink, marginTop: 15 }]}
+                                onPress={() => setShowInfoModal(false)}
+                            >
+                                <Text style={styles.buttonText}>Cerrar</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </Modal>
             </View>
         );
     }
@@ -329,7 +394,7 @@ export default function GameScreen() {
     return (
         <View style={styles.container}>
             <View style={styles.headerRow}>
-                <TouchableOpacity onPress={() => setShowScoreboard(!showScoreboard)} style={styles.scoreButton}>
+                <TouchableOpacity onPress={() => setShowScoreboard(true)} style={styles.scoreButton}>
                     <FontAwesome name="trophy" size={20} color={colors.darkPink} />
                     <Text style={{ color: colors.text, marginLeft: 5 }}>Puntos</Text>
                 </TouchableOpacity>
@@ -600,6 +665,12 @@ const styles = StyleSheet.create({
         fontSize: 32,
         fontWeight: 'bold',
         marginBottom: 30,
+    },
+    subheader: {
+        fontSize: 20,
+        fontWeight: '600',
+        marginBottom: 20,
+        opacity: 0.8,
     },
     // Setup Styles
     inputContainer: {
@@ -899,5 +970,21 @@ const styles = StyleSheet.create({
         paddingHorizontal: 15,
         borderRadius: 10,
         marginVertical: 4,
+    },
+    infoButtonTop: {
+        padding: 10,
+        backgroundColor: 'rgba(0,0,0,0.05)',
+        borderRadius: 20,
+    },
+    infoText: {
+        fontSize: 15,
+        lineHeight: 22,
+        marginBottom: 10,
+    },
+    infoSection: {
+        fontSize: 17,
+        fontWeight: 'bold',
+        marginTop: 20,
+        marginBottom: 10,
     },
 });
