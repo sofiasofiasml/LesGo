@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, TouchableOpacity, Modal, useColorScheme, TextInput, ScrollView } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import { GAME_CARDS, Card } from '@/constants/GameData';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Fisher-Yates Shuffle Algorithm
 const shuffleArray = (array: Card[]) => {
@@ -58,17 +59,47 @@ export default function GameScreen() {
     };
 
     // --- Setup Logic ---
-    const addPlayer = () => {
+    const addPlayer = async () => {
         if (newPlayerName.trim().length > 0) {
-            setPlayers([...players, newPlayerName.trim()]);
+            const updatedPlayers = [...players, newPlayerName.trim()];
+            setPlayers(updatedPlayers);
             setNewPlayerName('');
+            // Save to AsyncStorage
+            await savePlayersToStorage(updatedPlayers);
         }
     };
 
-    const removePlayer = (index: number) => {
+    const removePlayer = async (index: number) => {
         const updatedPlayers = players.filter((_, i) => i !== index);
         setPlayers(updatedPlayers);
+        // Save to AsyncStorage
+        await savePlayersToStorage(updatedPlayers);
     };
+
+    // AsyncStorage functions
+    const savePlayersToStorage = async (playersList: string[]) => {
+        try {
+            await AsyncStorage.setItem('lesgo_players', JSON.stringify(playersList));
+        } catch (error) {
+            console.error('Error saving players:', error);
+        }
+    };
+
+    const loadPlayersFromStorage = async () => {
+        try {
+            const savedPlayers = await AsyncStorage.getItem('lesgo_players');
+            if (savedPlayers) {
+                setPlayers(JSON.parse(savedPlayers));
+            }
+        } catch (error) {
+            console.error('Error loading players:', error);
+        }
+    };
+
+    // Load players on component mount
+    useEffect(() => {
+        loadPlayersFromStorage();
+    }, []);
 
     const startGame = () => {
         if (players.length > 0) {
@@ -93,7 +124,8 @@ export default function GameScreen() {
     const resetGame = () => {
         setShowExitConfirm(false);
         setGameState('setup');
-        setPlayers([]);
+        // Keep players list - don't clear it
+        // setPlayers([]);
         setCurrentPlayerIndex(0);
         setPlayerScores({});
         setDirection(1);
