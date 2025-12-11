@@ -136,12 +136,19 @@ export default function GameScreen() {
     const addCustomCard = async () => {
         if (!newCustomCard.text.trim()) return;
 
-        const card: Card = {
-            ...newCustomCard,
-            id: Date.now().toString(),
-        };
+        let updatedCards;
+        if (newCustomCard.id) {
+            // Edit existing card
+            updatedCards = customCards.map(c => c.id === newCustomCard.id ? newCustomCard : c);
+        } else {
+            // Create new card
+            const newCard: Card = {
+                ...newCustomCard,
+                id: Date.now().toString(),
+            };
+            updatedCards = [...customCards, newCard];
+        }
 
-        const updatedCards = [...customCards, card];
         setCustomCards(updatedCards);
         await saveCustomCardsToStorage(updatedCards);
 
@@ -154,6 +161,12 @@ export default function GameScreen() {
             category: 'general',
             intensity: 'medium',
         });
+        // Don't close modal automatically in edit mode to let user see result, or close? 
+        // User flow: edit -> save -> clear form. Maybe keep open or close? Let's close for now to be consistent.
+        // Actually, user might want to add more. But consistent behavior is close.
+        // But for "Edit", it feels like "Done".
+        // Let's keep it consistent: always clear and close? Or just clear.
+        // Current behavior was: clear and close.
         setShowCustomCardModal(false);
     };
 
@@ -161,6 +174,21 @@ export default function GameScreen() {
         const updatedCards = customCards.filter(card => card.id !== id);
         setCustomCards(updatedCards);
         await saveCustomCardsToStorage(updatedCards);
+    };
+
+    const editCustomCard = (card: Card) => {
+        setNewCustomCard(card);
+    };
+
+    const cancelEdit = () => {
+        setNewCustomCard({
+            id: '',
+            text: '',
+            type: 'question',
+            mode: 'binary',
+            category: 'general',
+            intensity: 'medium',
+        });
     };
 
     // Load players and custom cards on component mount
@@ -171,8 +199,31 @@ export default function GameScreen() {
 
     const startGame = () => {
         if (players.length > 0) {
+            // Filter cards based on configuration
+            const intensityLevels = { 'soft': 1, 'medium': 2, 'spicy': 3 };
+            const selectedLevel = intensityLevels[selectedIntensity];
+
+            const allCards = [...GAME_CARDS, ...customCards];
+
+            const filteredCards = allCards.filter(card => {
+                const cardCategory = card.category || 'general';
+                const cardIntensity = card.intensity || 'medium';
+                const cardLevel = intensityLevels[cardIntensity] || 2; // Default to medium
+
+                // Category check: Must be in selected categories
+                const categoryMatch = selectedCategories.includes(cardCategory);
+
+                // Intensity check: cumulative (e.g. Medium includes Soft and Medium)
+                const intensityMatch = cardLevel <= selectedLevel;
+
+                return categoryMatch && intensityMatch;
+            });
+
+            // Ensure we have at least some cards, fallback if filter removes all
+            const deckToUse = filteredCards.length > 0 ? filteredCards : allCards;
+
             // Filter out special cards for first round
-            const firstRoundCards = GAME_CARDS.filter(card => !card.specialEffect);
+            const firstRoundCards = deckToUse.filter(card => !card.specialEffect);
             setDeck(shuffleArray(firstRoundCards));
             setCurrentCardIndex(0);
             setCurrentPlayerIndex(0);
@@ -244,13 +295,39 @@ export default function GameScreen() {
         if (nextIndex === 0 && currentRound === 1) {
             // Start round 2 - now include special cards
             setCurrentRound(2);
-            setDeck(shuffleArray(GAME_CARDS)); // Include all cards now
+
+            // Re-apply filters for round 2 deck
+            const intensityLevels = { 'soft': 1, 'medium': 2, 'spicy': 3 };
+            const selectedLevel = intensityLevels[selectedIntensity];
+            const allCards = [...GAME_CARDS, ...customCards];
+
+            const filteredCards = allCards.filter(card => {
+                const cardCategory = card.category || 'general';
+                const cardIntensity = card.intensity || 'medium';
+                const cardLevel = intensityLevels[cardIntensity] || 2;
+                return selectedCategories.includes(cardCategory) && cardLevel <= selectedLevel;
+            });
+            const deckToUse = filteredCards.length > 0 ? filteredCards : allCards;
+
+            setDeck(shuffleArray(deckToUse)); // Include all cards now (special effects allowed)
             setCurrentCardIndex(0);
         }
         // Reshuffle if we looped through the deck
         else if ((currentCardIndex + 1) % activeDeck.length === 0) {
             // Keep using all cards after round 2
-            const cardsToUse = currentRound >= 2 ? GAME_CARDS : GAME_CARDS.filter(card => !card.specialEffect);
+            const intensityLevels = { 'soft': 1, 'medium': 2, 'spicy': 3 };
+            const selectedLevel = intensityLevels[selectedIntensity];
+            const allCards = [...GAME_CARDS, ...customCards];
+
+            const filteredCards = allCards.filter(card => {
+                const cardCategory = card.category || 'general';
+                const cardIntensity = card.intensity || 'medium';
+                const cardLevel = intensityLevels[cardIntensity] || 2;
+                return selectedCategories.includes(cardCategory) && cardLevel <= selectedLevel;
+            });
+            const deckToUse = filteredCards.length > 0 ? filteredCards : allCards;
+
+            const cardsToUse = currentRound >= 2 ? deckToUse : deckToUse.filter(card => !card.specialEffect);
             setDeck(shuffleArray(cardsToUse));
         }
 
@@ -542,43 +619,54 @@ export default function GameScreen() {
 
                         <ScrollView style={{ width: '100%' }} showsVerticalScrollIndicator={true}>
                             <View style={{ paddingHorizontal: 5 }}>
-                                <Text style={{ color: colors.text, marginBottom: 8, fontWeight: '700', fontSize: 14 }}>📝 Texto:</Text>
-                                <TextInput
-                                    style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, height: 90, textAlignVertical: 'top', padding: 12, fontSize: 14 }]}
-                                    placeholder="Ej: Yo nunca he..."
-                                    placeholderTextColor={colors.text + '80'}
-                                    value={newCustomCard.text}
-                                    onChangeText={(text) => setNewCustomCard({ ...newCustomCard, text })}
-                                    multiline
-                                />
-
-                                <Text style={{ color: colors.text, marginTop: 16, marginBottom: 8, fontWeight: '700', fontSize: 14 }}>🎯 Tipo:</Text>
-                                <View style={{ flexDirection: 'row', gap: 8 }}>
+                                <Text style={{ color: colors.text, marginTop: 16, marginBottom: 8, fontWeight: '700', fontSize: 14 }}>🎯 Tipo de Carta:</Text>
+                                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 5 }}>
                                     {[
-                                        { key: 'question', label: 'Pregunta', icon: '❓' },
-                                        { key: 'challenge', label: 'Reto', icon: '🎯' },
-                                        { key: 'rule', label: 'Regla', icon: '📜' },
+                                        { key: 'question', label: 'Pregunta', icon: '❓', mode: 'binary', hint: 'Sí/No (Yo Nunca)' },
+                                        { key: 'challenge', label: 'Reto', icon: '⚡', mode: 'statement', hint: 'Acción directa' },
+                                        { key: 'rule', label: 'Regla', icon: '📜', mode: 'rule', hint: 'Nueva norma' },
                                     ].map(type => (
                                         <TouchableOpacity
                                             key={type.key}
                                             style={{
                                                 flex: 1,
                                                 backgroundColor: newCustomCard.type === type.key ? colors.pink : colors.inputBackground,
-                                                paddingVertical: 10,
-                                                borderRadius: 10,
+                                                paddingVertical: 12,
+                                                borderRadius: 12,
                                                 borderWidth: 2,
-                                                borderColor: newCustomCard.type === type.key ? colors.pink : 'transparent',
+                                                borderColor: newCustomCard.type === type.key ? colors.darkPink : 'transparent',
                                                 alignItems: 'center',
                                             }}
-                                            onPress={() => setNewCustomCard({ ...newCustomCard, type: type.key as any })}
+                                            onPress={() => setNewCustomCard({
+                                                ...newCustomCard,
+                                                type: type.key as any,
+                                                mode: type.mode as any // Auto-set mode
+                                            })}
                                         >
-                                            <Text style={{ fontSize: 20, marginBottom: 2 }}>{type.icon}</Text>
-                                            <Text style={{ color: newCustomCard.type === type.key ? 'white' : colors.text, fontSize: 10, fontWeight: '600' }}>
+                                            <Text style={{ fontSize: 24, marginBottom: 4 }}>{type.icon}</Text>
+                                            <Text style={{ color: newCustomCard.type === type.key ? 'white' : colors.text, fontSize: 13, fontWeight: 'bold' }}>
                                                 {type.label}
+                                            </Text>
+                                            <Text style={{ color: newCustomCard.type === type.key ? 'rgba(255,255,255,0.8)' : colors.text, fontSize: 10, opacity: newCustomCard.type === type.key ? 1 : 0.6 }}>
+                                                {type.hint}
                                             </Text>
                                         </TouchableOpacity>
                                     ))}
                                 </View>
+
+                                <Text style={{ color: colors.text, marginTop: 16, marginBottom: 8, fontWeight: '700', fontSize: 14 }}>📝 Texto de la carta:</Text>
+                                <TextInput
+                                    style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, height: 100, textAlignVertical: 'top', padding: 15, fontSize: 16, borderRadius: 12 }]}
+                                    placeholder={
+                                        newCustomCard.type === 'question' ? "Ej: ¿Alguna vez te has liado con la ex de una amiga?" :
+                                            newCustomCard.type === 'challenge' ? "Ej: La persona más joven bebe 2 tragos." :
+                                                "Ej: Prohibido decir la palabra 'NO' hasta el siguiente turno."
+                                    }
+                                    placeholderTextColor={colors.text + '60'}
+                                    value={newCustomCard.text}
+                                    onChangeText={(text) => setNewCustomCard({ ...newCustomCard, text })}
+                                    multiline
+                                />
 
                                 <Text style={{ color: colors.text, marginTop: 16, marginBottom: 8, fontWeight: '700', fontSize: 14 }}>🏷️ Categoría:</Text>
                                 <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
@@ -676,9 +764,14 @@ export default function GameScreen() {
                                                                 {(card.category || 'general').toUpperCase()} • {(card.intensity || 'medium').toUpperCase()}
                                                             </Text>
                                                         </View>
-                                                        <TouchableOpacity onPress={() => deleteCustomCard(card.id)} style={{ padding: 8, marginLeft: 8 }}>
-                                                            <FontAwesome name="trash" size={18} color={colors.orange} />
-                                                        </TouchableOpacity>
+                                                        <View style={{ flexDirection: 'row' }}>
+                                                            <TouchableOpacity onPress={() => editCustomCard(card)} style={{ padding: 8 }}>
+                                                                <FontAwesome name="pencil" size={18} color={colors.purple} />
+                                                            </TouchableOpacity>
+                                                            <TouchableOpacity onPress={() => deleteCustomCard(card.id)} style={{ padding: 8 }}>
+                                                                <FontAwesome name="trash" size={18} color={colors.orange} />
+                                                            </TouchableOpacity>
+                                                        </View>
                                                     </View>
                                                 ))}
                                             </ScrollView>
@@ -689,18 +782,28 @@ export default function GameScreen() {
                         </ScrollView>
 
                         <View style={{ flexDirection: 'row', gap: 10, marginTop: 15, width: '100%' }}>
-                            <TouchableOpacity
-                                style={[styles.modalButton, { backgroundColor: colors.inputBackground, flex: 1 }]}
-                                onPress={() => setShowCustomCardModal(false)}
-                            >
-                                <Text style={[styles.buttonText, { color: colors.text }]}>Cancelar</Text>
-                            </TouchableOpacity>
+                            {newCustomCard.id ? (
+                                <TouchableOpacity
+                                    style={[styles.modalButton, { backgroundColor: colors.inputBackground, flex: 1 }]}
+                                    onPress={cancelEdit}
+                                >
+                                    <Text style={[styles.buttonText, { color: colors.text }]}>Cancelar Edición</Text>
+                                </TouchableOpacity>
+                            ) : (
+                                <TouchableOpacity
+                                    style={[styles.modalButton, { backgroundColor: colors.inputBackground, flex: 1 }]}
+                                    onPress={() => setShowCustomCardModal(false)}
+                                >
+                                    <Text style={[styles.buttonText, { color: colors.text }]}>Cerrar</Text>
+                                </TouchableOpacity>
+                            )}
+
                             <TouchableOpacity
                                 style={[styles.modalButton, { backgroundColor: colors.pink, flex: 1, opacity: newCustomCard.text.trim() ? 1 : 0.5 }]}
                                 onPress={addCustomCard}
                                 disabled={!newCustomCard.text.trim()}
                             >
-                                <Text style={styles.buttonText}>Añadir ✓</Text>
+                                <Text style={styles.buttonText}>{newCustomCard.id ? 'Guardar Cambios' : 'Añadir'} ✓</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -879,8 +982,10 @@ export default function GameScreen() {
                 <View style={styles.iconContainer}>
                     {renderIcon()}
                 </View>
+                <Text style={[styles.cardType, { color: colors.darkPink, marginBottom: 10 }]}>
+                    {currentCard.type.toUpperCase()} {customCards.some(c => c.id === currentCard.id) ? '👑' : ''}
+                </Text>
                 <Text style={[styles.cardText, { color: colors.text }]}>{currentCard.text}</Text>
-                <Text style={[styles.cardType, { color: colors.darkPink }]}>{currentCard.type.toUpperCase()}</Text>
             </View>
 
             <View style={styles.buttonContainer}>
