@@ -125,12 +125,11 @@ export default function MemoryChallenge({ visible, onClose, colors }: MemoryChal
         Haptics.notificationAsync(won ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error);
     };
 
-    const getButtonStyle = (colorId: string) => {
-        const opacity = opacities[colorId as keyof typeof opacities];
-        // eslint-disable-next-line react-hooks/rules-of-hooks
-        const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
-        return animStyle;
-    };
+    // Animated styles defined at component level
+    const redStyle = useAnimatedStyle(() => ({ opacity: opacities.red.value }));
+    const greenStyle = useAnimatedStyle(() => ({ opacity: opacities.green.value }));
+    const blueStyle = useAnimatedStyle(() => ({ opacity: opacities.blue.value }));
+    const yellowStyle = useAnimatedStyle(() => ({ opacity: opacities.yellow.value }));
 
     if (!visible) return null;
 
@@ -152,24 +151,24 @@ export default function MemoryChallenge({ visible, onClose, colors }: MemoryChal
                     <View style={styles.gameBoard}>
                         <View style={styles.row}>
                             <AnimatedTouchableOpacity
-                                style={[styles.simonBtn, { backgroundColor: '#FF3B30' }, getButtonStyle('red')]}
+                                style={[styles.simonBtn, { backgroundColor: '#FF3B30' }, redStyle]}
                                 onPress={() => handleInput('red')}
                                 activeOpacity={1}
                             />
                             <AnimatedTouchableOpacity
-                                style={[styles.simonBtn, { backgroundColor: '#4CD964' }, getButtonStyle('green')]}
+                                style={[styles.simonBtn, { backgroundColor: '#4CD964' }, greenStyle]}
                                 onPress={() => handleInput('green')}
                                 activeOpacity={1}
                             />
                         </View>
                         <View style={styles.row}>
                             <AnimatedTouchableOpacity
-                                style={[styles.simonBtn, { backgroundColor: '#007AFF' }, getButtonStyle('blue')]}
+                                style={[styles.simonBtn, { backgroundColor: '#007AFF' }, blueStyle]}
                                 onPress={() => handleInput('blue')}
                                 activeOpacity={1}
                             />
                             <AnimatedTouchableOpacity
-                                style={[styles.simonBtn, { backgroundColor: '#FFCC00' }, getButtonStyle('yellow')]}
+                                style={[styles.simonBtn, { backgroundColor: '#FFCC00' }, yellowStyle]}
                                 onPress={() => handleInput('yellow')}
                                 activeOpacity={1}
                             />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Dimensions, TouchableOpacity, Easing } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import Animated, {
     useSharedValue,
@@ -8,7 +8,8 @@ import Animated, {
     runOnJS,
     withDecay,
     cancelAnimation,
-    useDerivedValue
+    useDerivedValue,
+    Easing
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
