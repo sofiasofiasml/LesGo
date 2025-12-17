@@ -6,7 +6,7 @@ export interface Card {
     drinkTrigger?: 'yes' | 'no' | 'always' | 'none';
     drinkAction?: string; // e.g. "Bebe 2 tragos"
     points?: number; // Points awarded for this card (default 1)
-    specialEffect?: 'double' | 'reverse' | 'skip' | 'steal' | 'bonus' | 'gift' | 'bomb' | 'star' | 'roulette' | 'minigame_brick' | 'minigame_flappy'; // Special game mechanics
+    specialEffect?: 'double' | 'reverse' | 'skip' | 'steal' | 'bonus' | 'gift' | 'bomb' | 'star' | 'roulette' | 'minigame_brick' | 'minigame_flappy' | 'minigame_roulette' | 'minigame_tapper' | 'minigame_memory' | 'minigame_reflex' | 'minigame_stop' | 'minigame_box'; // Special game mechanics
     category?: 'romantic' | 'spicy' | 'fun' | 'general';
     intensity?: 'soft' | 'medium' | 'spicy';
 }
@@ -1177,5 +1177,68 @@ export const GAME_CARDS: Card[] = [
         category: 'fun',
         intensity: 'spicy',
         specialEffect: 'minigame_brick'
+    },
+    {
+        id: 'mg4',
+        text: '¡RULETA DE LA SUERTE! 🎰\nGira y descubre tu destino.',
+        type: 'challenge',
+        mode: 'statement',
+        category: 'fun',
+        intensity: 'medium',
+        specialEffect: 'minigame_roulette'
+    },
+    {
+        id: 'mg5',
+        text: '¿TE SIENTES CON SUERTE? 🍀\nJuega a la ruleta para ganar (o perder) puntos.',
+        type: 'challenge',
+        mode: 'statement',
+        category: 'spicy',
+        intensity: 'spicy',
+        specialEffect: 'minigame_roulette'
+    },
+    {
+        id: 'mg6',
+        text: 'MACHACA EL BOTÓN 👆\n30 toques en 5 segundos. ¿Podrás?',
+        type: 'challenge',
+        mode: 'statement',
+        category: 'fun',
+        intensity: 'medium',
+        specialEffect: 'minigame_tapper'
+    },
+    {
+        id: 'mg7',
+        text: 'SIMON DICE 🧠\nConcentración máxima o bebes.',
+        type: 'challenge',
+        mode: 'statement',
+        category: 'fun',
+        intensity: 'medium',
+        specialEffect: 'minigame_memory'
+    },
+    {
+        id: 'mg8',
+        text: 'DUELO VAQUERO 🤠\nEl más rápido del oeste se salva.',
+        type: 'challenge',
+        mode: 'statement',
+        category: 'fun',
+        intensity: 'spicy',
+        specialEffect: 'minigame_reflex'
+    },
+    {
+        id: 'mg9',
+        text: 'PARADA EN SECO 🛑\nDetén el medidor en el momento exacto.',
+        type: 'challenge',
+        mode: 'statement',
+        category: 'fun',
+        intensity: 'medium',
+        specialEffect: 'minigame_stop'
+    },
+    {
+        id: 'mg10',
+        text: 'CAJA SORPRESA 🎁\n¿Premio o castigo? Abre y descubre.',
+        type: 'challenge',
+        mode: 'statement',
+        category: 'spicy',
+        intensity: 'spicy',
+        specialEffect: 'minigame_box'
     }
 ];

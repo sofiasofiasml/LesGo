@@ -48,11 +48,16 @@ export default function FlappyDrink({ visible, onClose, colors }: FlappyDrinkPro
 
     const startGame = () => {
         setGameState('playing');
+        velocityRef.current = JUMP; // Initial jump
         // Add initial pipe
         addPipe(GAME_WIDTH + 100);
     };
 
     const jump = () => {
+        if (gameState === 'start') {
+            startGame();
+            return;
+        }
         if (gameState !== 'playing') return;
         velocityRef.current = JUMP;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

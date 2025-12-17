@@ -13,6 +13,12 @@ import GameCard from '@/components/game/GameCard';
 import RouletteModal from '@/components/game/RouletteModal';
 import BrickBreaker from '@/components/game/minigames/BrickBreaker';
 import FlappyDrink from '@/components/game/minigames/FlappyDrink';
+import FortuneRoulette from '@/components/game/minigames/FortuneRoulette';
+import FastTapper from '@/components/game/minigames/FastTapper';
+import MemoryChallenge from '@/components/game/minigames/MemoryChallenge';
+import ReflexDuel from '@/components/game/minigames/ReflexDuel';
+import StopTheBus from '@/components/game/minigames/StopTheBus';
+import GiftBox from '@/components/game/minigames/GiftBox';
 
 // Fisher-Yates Shuffle Algorithm
 const shuffleArray = (array: Card[]) => {
@@ -63,6 +69,7 @@ export default function GameScreen() {
     const [doublePoints, setDoublePoints] = useState(false);
     const [skipNext, setSkipNext] = useState(false);
     const [showScoreboard, setShowScoreboard] = useState(false);
+    const [showConfig, setShowConfig] = useState(false);
 
     // Player selection modal for steal/gift effects
     const [playerSelectionModal, setPlayerSelectionModal] = useState(false);
@@ -85,7 +92,14 @@ export default function GameScreen() {
     const [pendingRouletteAction, setPendingRouletteAction] = useState<'turn' | 'effect'>('turn');
     const [showBrickBreaker, setShowBrickBreaker] = useState(false);
     const [showFlappyDrink, setShowFlappyDrink] = useState(false);
+    const [showFortuneRoulette, setShowFortuneRoulette] = useState(false);
+    const [showFastTapper, setShowFastTapper] = useState(false);
+    const [showMemoryChallenge, setShowMemoryChallenge] = useState(false);
+    const [showReflexDuel, setShowReflexDuel] = useState(false);
+    const [showStopTheBus, setShowStopTheBus] = useState(false);
+    const [showGiftBox, setShowGiftBox] = useState(false);
     const [isArcadeMode, setIsArcadeMode] = useState(false);
+    const [isMinigameOnlyMode, setIsMinigameOnlyMode] = useState(false);
 
 
     // Timer Effect
@@ -131,6 +145,7 @@ export default function GameScreen() {
     const colors = {
         orange: '#FF6B35',
         lightOrange: '#FF9A56',
+        gold: '#FFD700',
         white: '#FFFFFF',
         pink: '#E91E8C',
         darkPink: '#C2185B',
@@ -306,6 +321,13 @@ export default function GameScreen() {
             setSkipNext(false);
             setWinner(null);
             setGameState('playing');
+
+            // Trigger initial minigame if specific mode is active
+            if (isMinigameOnlyMode) {
+                setTimeout(() => {
+                    triggerRandomMinigame();
+                }, 600); // Slight delay to allow transition
+            }
         }
     };
 
@@ -375,6 +397,63 @@ export default function GameScreen() {
         playHaptic('heavy');
     };
 
+    const handleFortuneResult = (result: any) => {
+        setShowFortuneRoulette(false);
+        if (!result) return;
+
+        const currentPlayer = players[currentPlayerIndex];
+
+        // Process Result
+        if (result.type === 'points') {
+            const points = result.value;
+            setPlayerScores(prev => ({
+                ...prev,
+                [currentPlayer]: Math.max(0, (prev[currentPlayer] || 0) + points)
+            }));
+            // Show toast or modal? TimerModal used for general info sometimes
+            // For now, let's just rely on the Roulette's own result modal which the user already saw.
+        } else if (result.type === 'steal') {
+            // Steal 5 points from top player (excluding self)
+            let topPlayer = '';
+            let maxScore = -1;
+
+            Object.entries(playerScores).forEach(([p, score]) => {
+                if (p !== currentPlayer && score > maxScore) {
+                    maxScore = score;
+                    topPlayer = p;
+                }
+            });
+
+            if (topPlayer && maxScore > 0) {
+                const stealAmount = Math.min(maxScore, 5);
+                setPlayerScores(prev => ({
+                    ...prev,
+                    [topPlayer]: prev[topPlayer] - stealAmount,
+                    [currentPlayer]: (prev[currentPlayer] || 0) + stealAmount
+                }));
+            }
+        }
+        // 'drink' and 'challenge' are self-explanatory actions shown on the wheel results
+
+        // Advance Turn
+        nextTurn();
+    };
+
+    const triggerRandomMinigame = () => {
+        const minigames = [
+            () => setShowBrickBreaker(true),
+            () => setShowFlappyDrink(true),
+            () => setShowFortuneRoulette(true),
+            () => setShowFastTapper(true),
+            () => setShowMemoryChallenge(true),
+            () => setShowReflexDuel(true),
+            () => setShowStopTheBus(true),
+            () => setShowGiftBox(true),
+        ];
+        const randomMinigame = minigames[Math.floor(Math.random() * minigames.length)];
+        setTimeout(() => randomMinigame(), 500);
+    };
+
     const nextTurn = async () => {
         // Haptic feedback
         playHaptic('light');
@@ -415,16 +494,55 @@ export default function GameScreen() {
             setTimeout(() => setShowFlappyDrink(true), 500);
             return;
         }
+        if (effect === 'minigame_roulette') {
+            setTimeout(() => setShowFortuneRoulette(true), 500);
+            return;
+        }
+        if (effect === 'minigame_tapper') {
+            setTimeout(() => setShowFastTapper(true), 500);
+            return;
+        }
+        if (effect === 'minigame_memory') {
+            setTimeout(() => setShowMemoryChallenge(true), 500);
+            return;
+        }
+        if (effect === 'minigame_reflex') {
+            setTimeout(() => setShowReflexDuel(true), 500);
+            return;
+        }
+        if (effect === 'minigame_stop') {
+            setTimeout(() => setShowStopTheBus(true), 500);
+            return;
+        }
+        if (effect === 'minigame_box') {
+            setTimeout(() => setShowGiftBox(true), 500);
+            return;
+        }
 
-        // 2. Arcade Mode Random Exception (Only if no specific effect)
+        // 2. Minigame Only Mode (Overrides everything else)
+        if (isMinigameOnlyMode) {
+            triggerRandomMinigame();
+            return;
+        }
+
+        // 3. Arcade Mode Random Exception (Only if no specific effect)
         if (isArcadeMode && !effect) {
             const arcadeRoll = Math.random();
             // 30% chance total for a minigame
-            if (arcadeRoll > 0.85) { // 15% chance
+            if (arcadeRoll > 0.94) { // ~6%
                 setTimeout(() => setShowBrickBreaker(true), 500);
                 return;
-            } else if (arcadeRoll > 0.70) { // 15% chance
+            } else if (arcadeRoll > 0.88) { // ~6%
                 setTimeout(() => setShowFlappyDrink(true), 500);
+                return;
+            } else if (arcadeRoll > 0.82) { // ~6%
+                setTimeout(() => setShowFastTapper(true), 500);
+                return;
+            } else if (arcadeRoll > 0.76) { // ~6%
+                setTimeout(() => setShowReflexDuel(true), 500);
+                return;
+            } else if (arcadeRoll > 0.70) { // ~6%
+                setTimeout(() => setShowMemoryChallenge(true), 500);
                 return;
             }
         }
@@ -686,37 +804,57 @@ export default function GameScreen() {
                         </TouchableOpacity>
                     </View>
 
-                    <Text style={[styles.subheader, { color: colors.text, marginBottom: 20 }]}>Personaliza tu experiencia</Text>
-
-                    {/* Roulette Mode Toggle */}
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, backgroundColor: 'rgba(0,0,0,0.05)', padding: 10, borderRadius: 10 }}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={{ color: colors.text, fontWeight: 'bold' }}>🎲 Modo Ruleta (Caos)</Text>
-                            <Text style={{ color: colors.text, fontSize: 12, opacity: 0.7 }}>Turnos aleatorios en cada carta</Text>
-                        </View>
-                        <Switch
-                            trackColor={{ false: "#767577", true: colors.purple }}
-                            thumbColor={isRouletteMode ? "#f4f3f4" : "#f4f3f4"}
-                            onValueChange={() => setIsRouletteMode(prev => !prev)}
-                            value={isRouletteMode}
-                        />
-                    </View>
-
-                    {/* Arcade Mode Toggle */}
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, backgroundColor: 'rgba(0,0,0,0.05)', padding: 10, borderRadius: 10 }}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={{ color: colors.text, fontWeight: 'bold' }}>🕹️ Modo Arcade (Minijuegos)</Text>
-                            <Text style={{ color: colors.text, fontSize: 12, opacity: 0.7 }}>Aparición frecuente de minijuegos</Text>
-                        </View>
-                        <Switch
-                            trackColor={{ false: "#767577", true: colors.orange }}
-                            thumbColor={isArcadeMode ? "#f4f3f4" : "#f4f3f4"}
-                            onValueChange={() => setIsArcadeMode(prev => !prev)}
-                            value={isArcadeMode}
-                        />
-                    </View>
-
                     <ScrollView style={{ width: '100%' }} showsVerticalScrollIndicator={false}>
+                        <Text style={[styles.subheader, { color: colors.text, marginBottom: 20, marginTop: 10 }]}>Personaliza tu experiencia</Text>
+
+                        {/* Roulette Mode Toggle */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, backgroundColor: 'rgba(0,0,0,0.05)', padding: 10, borderRadius: 10 }}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={{ color: colors.text, fontWeight: 'bold' }}>🎲 Modo Ruleta (Caos)</Text>
+                                <Text style={{ color: colors.text, fontSize: 12, opacity: 0.7 }}>Turnos aleatorios en cada carta</Text>
+                            </View>
+                            <Switch
+                                trackColor={{ false: "#767577", true: colors.purple }}
+                                thumbColor={isRouletteMode ? "#f4f3f4" : "#f4f3f4"}
+                                onValueChange={() => setIsRouletteMode(prev => !prev)}
+                                value={isRouletteMode}
+                            />
+                        </View>
+
+                        {/* Arcade Mode Toggle */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, backgroundColor: 'rgba(0,0,0,0.05)', padding: 10, borderRadius: 10 }}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={{ color: colors.text, fontWeight: 'bold' }}>🕹️ Modo Arcade (Minijuegos)</Text>
+                                <Text style={{ color: colors.text, fontSize: 12, opacity: 0.7 }}>Aparición frecuente de minijuegos</Text>
+                            </View>
+                            <Switch
+                                trackColor={{ false: "#767577", true: colors.orange }}
+                                thumbColor={isArcadeMode ? "#f4f3f4" : "#f4f3f4"}
+                                onValueChange={(v) => {
+                                    setIsArcadeMode(v);
+                                    if (v) setIsMinigameOnlyMode(false);
+                                }}
+                                value={isArcadeMode}
+                            />
+                        </View>
+
+                        {/* Minigames Only Toggle */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, backgroundColor: 'rgba(0,0,0,0.05)', padding: 10, borderRadius: 10 }}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={{ color: colors.text, fontWeight: 'bold' }}>🎮 Solo Minijuegos</Text>
+                                <Text style={{ color: colors.text, fontSize: 12, opacity: 0.7 }}>Sin cartas, solo acción desenfrenada</Text>
+                            </View>
+                            <Switch
+                                trackColor={{ false: "#767577", true: colors.purple }}
+                                thumbColor={isMinigameOnlyMode ? "#f4f3f4" : "#f4f3f4"}
+                                onValueChange={(v) => {
+                                    setIsMinigameOnlyMode(v);
+                                    if (v) setIsArcadeMode(false);
+                                }}
+                                value={isMinigameOnlyMode}
+                            />
+                        </View>
+
                         {/* Categories Selection */}
                         <Text style={{ color: colors.text, fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>
                             🏷️ Categorías
@@ -1035,6 +1173,9 @@ export default function GameScreen() {
                     </View>
                 </View>
                 <Text style={[styles.subheader, { color: colors.text }]}>Añadir Jugadoras</Text>
+
+                {/* Inline Game Modes removed - Moved to Config Modal */}
+
                 <View style={styles.inputContainer}>
                     <TextInput
                         style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text }]}
@@ -1099,28 +1240,27 @@ export default function GameScreen() {
 
     return (
         <View style={styles.container}>
-            <View style={styles.headerRow}>
-                <TouchableOpacity onPress={() => setShowScoreboard(true)} style={styles.scoreButton}>
-                    <FontAwesome name="trophy" size={20} color={colors.darkPink} />
-                    <Text style={{ color: colors.text, marginLeft: 5 }}>Puntos</Text>
+            <View style={styles.headerButtons}>
+                <TouchableOpacity style={styles.scoreButton} onPress={() => setShowScoreboard(true)}>
+                    <FontAwesome name="trophy" size={24} color={colors.gold} />
+                    <Text style={[styles.scoreText, { color: colors.text }]}>{playerScores[currentPlayer] || 0} pts</Text>
                 </TouchableOpacity>
-                <View style={styles.turnInfo}>
-                    <Text style={styles.turnLabel}>Turno de:</Text>
-                    <Text style={[styles.turnPlayer, { color: colors.darkPink }]}>{currentPlayer}</Text>
-                </View>
-                <TouchableOpacity onPress={handleExitClick} style={styles.exitButtonTop}>
+
+                <TouchableOpacity onPress={handleExitClick} style={[styles.scoreButton, { marginLeft: 10, backgroundColor: 'rgba(255,0,0,0.2)' }]}>
                     <FontAwesome name="times" size={24} color={colors.text} />
                 </TouchableOpacity>
             </View>
 
             {/* Special Effects Indicators */}
-            {(doublePoints || skipNext || direction === -1) && (
-                <View style={styles.effectsBar}>
-                    {doublePoints && <Text style={styles.effectBadge}>🔥 DOBLE PUNTOS</Text>}
-                    {skipNext && <Text style={styles.effectBadge}>⏭️ PRÓXIMO TURNO SALTADO</Text>}
-                    {direction === -1 && <Text style={styles.effectBadge}>🔄 SENTIDO INVERTIDO</Text>}
-                </View>
-            )}
+            {
+                (doublePoints || skipNext || direction === -1) && (
+                    <View style={styles.effectsBar}>
+                        {doublePoints && <Text style={styles.effectBadge}>🔥 DOBLE PUNTOS</Text>}
+                        {skipNext && <Text style={styles.effectBadge}>⏭️ PRÓXIMO TURNO SALTADO</Text>}
+                        {direction === -1 && <Text style={styles.effectBadge}>🔄 SENTIDO INVERTIDO</Text>}
+                    </View>
+                )
+            }
 
             {/* Current Player Score */}
             <View style={styles.currentScoreBar}>
@@ -1217,7 +1357,8 @@ export default function GameScreen() {
                             <FontAwesome name="trophy" size={30} color={colors.pink} />
                             <Text style={[styles.modalTitle, { color: colors.text }]}>Puntuaciones</Text>
                         </View>
-                        <ScrollView style={{ width: '100%', maxHeight: 400, marginTop: 10 }}>
+                        <ScrollView style={{ width: '100%', maxHeight: 500, marginTop: 10 }}>
+                            {/* Scoreboard Section */}
                             {players
                                 .map((player, index) => ({ player, score: playerScores[player] || 0, index }))
                                 .sort((a, b) => b.score - a.score)
@@ -1246,16 +1387,19 @@ export default function GameScreen() {
                                         </Text>
                                     </View>
                                 ))}
+
+                            <TouchableOpacity
+                                style={[styles.modalButton, { backgroundColor: colors.pink, marginTop: 30, marginBottom: 20 }]}
+                                onPress={() => setShowScoreboard(false)}
+                            >
+                                <Text style={styles.buttonText}>Cerrar</Text>
+                            </TouchableOpacity>
                         </ScrollView>
-                        <TouchableOpacity
-                            style={[styles.modalButton, { backgroundColor: colors.pink, marginTop: 20 }]}
-                            onPress={() => setShowScoreboard(false)}
-                        >
-                            <Text style={styles.buttonText}>Cerrar</Text>
-                        </TouchableOpacity>
                     </View>
                 </View>
             </Modal>
+
+            {/* Config Modal Removed */}
 
             {/* Exit Confirmation Modal */}
             <Modal
@@ -1401,6 +1545,94 @@ export default function GameScreen() {
                 }}
                 colors={colors}
             />
+
+            <FortuneRoulette
+                visible={showFortuneRoulette}
+                onClose={handleFortuneResult}
+                colors={colors}
+            />
+
+            <FastTapper
+                visible={showFastTapper}
+                onClose={(success) => {
+                    setShowFastTapper(false);
+                    if (!success) handleDrink('¡PULSACIONES CARDÍACAS BAJAS!');
+                    setCurrentCardIndex(prev => prev + 1);
+                    setCurrentPlayerIndex(prev => {
+                        let next = prev + direction;
+                        if (next >= players.length) next = 0;
+                        if (next < 0) next = players.length - 1;
+                        return next;
+                    });
+                }}
+                colors={colors}
+            />
+
+            <MemoryChallenge
+                visible={showMemoryChallenge}
+                onClose={(success) => {
+                    setShowMemoryChallenge(false);
+                    if (!success) handleDrink('¡MEMORIA DE PEZ!');
+                    setCurrentCardIndex(prev => prev + 1);
+                    setCurrentPlayerIndex(prev => {
+                        let next = prev + direction;
+                        if (next >= players.length) next = 0;
+                        if (next < 0) next = players.length - 1;
+                        return next;
+                    });
+                }}
+                colors={colors}
+            />
+
+            <ReflexDuel
+                visible={showReflexDuel}
+                onClose={(success) => {
+                    setShowReflexDuel(false);
+                    if (!success) handleDrink('¡BANG! ESTÁS MUERTO.');
+                    setCurrentCardIndex(prev => prev + 1);
+                    setCurrentPlayerIndex(prev => {
+                        let next = prev + direction;
+                        if (next >= players.length) next = 0;
+                        if (next < 0) next = players.length - 1;
+                        return next;
+                    });
+                }}
+                colors={colors}
+            />
+
+            <StopTheBus
+                visible={showStopTheBus}
+                onClose={(success) => {
+                    setShowStopTheBus(false);
+                    if (!success) handleDrink('¡TE HAS PASADO!');
+                    setCurrentCardIndex(prev => prev + 1);
+                    setCurrentPlayerIndex(prev => {
+                        let next = prev + direction;
+                        if (next >= players.length) next = 0;
+                        if (next < 0) next = players.length - 1;
+                        return next;
+                    });
+                }}
+                colors={colors}
+            />
+
+            <GiftBox
+                visible={showGiftBox}
+                onClose={(success) => {
+                    setShowGiftBox(false);
+                    if (!success) handleDrink('¡BOMBAZO!');
+                    setCurrentCardIndex(prev => prev + 1);
+                    setCurrentPlayerIndex(prev => {
+                        let next = prev + direction;
+                        if (next >= players.length) next = 0;
+                        if (next < 0) next = players.length - 1;
+                        return next;
+                    });
+                }}
+                colors={colors}
+            />
+
+
         </View >
     );
 }
@@ -1596,13 +1828,30 @@ const styles = StyleSheet.create({
         width: '100%',
         alignItems: 'center',
     },
+    safeArea: {
+        flex: 1,
+    },
+    headerButtons: {
+        position: 'absolute',
+        top: 60,
+        right: 20,
+        zIndex: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
     // Points System Styles
     scoreButton: {
         flexDirection: 'row',
         alignItems: 'center',
         padding: 10,
-        backgroundColor: 'rgba(0,0,0,0.05)',
+        backgroundColor: 'rgba(0,0,0,0.5)',
         borderRadius: 20,
+        gap: 8
+    },
+    scoreText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: 'white',
     },
     effectsBar: {
         flexDirection: 'row',
@@ -1739,5 +1988,18 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginTop: 20,
         marginBottom: 10,
+    },
+    configRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(0,0,0,0.1)',
+        width: '100%',
+    },
+    configLabel: {
+        fontSize: 18,
+        fontWeight: 'bold',
     },
 });
