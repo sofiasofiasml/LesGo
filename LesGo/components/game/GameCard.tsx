@@ -89,7 +89,7 @@ export default function GameCard({ card, formattedText, isCustom, colors, onTime
 const styles = StyleSheet.create({
     card: {
         width: '100%',
-        minHeight: 250,
+        minHeight: 380, // Increased from 250
         borderRadius: 20,
         padding: 30,
         alignItems: 'center',
@@ -102,18 +102,18 @@ const styles = StyleSheet.create({
         shadowRadius: 6.27,
     },
     iconContainer: {
-        marginBottom: 20,
-        padding: 15,
+        marginBottom: 30, // Increased spacing
+        padding: 20,
         backgroundColor: 'rgba(255,255,255,0.1)',
         borderRadius: 50,
     },
     cardType: {
-        fontSize: 14,
+        fontSize: 16, // Increased
         fontWeight: 'bold',
         letterSpacing: 1,
     },
     cardText: {
-        fontSize: 24,
+        fontSize: 28, // Increased from 24
         fontWeight: 'bold',
         textAlign: 'center',
     },

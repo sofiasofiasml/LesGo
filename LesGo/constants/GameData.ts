@@ -6,7 +6,7 @@ export interface Card {
     drinkTrigger?: 'yes' | 'no' | 'always' | 'none';
     drinkAction?: string; // e.g. "Bebe 2 tragos"
     points?: number; // Points awarded for this card (default 1)
-    specialEffect?: 'double' | 'reverse' | 'skip' | 'steal' | 'bonus' | 'gift' | 'bomb' | 'star'; // Special game mechanics
+    specialEffect?: 'double' | 'reverse' | 'skip' | 'steal' | 'bonus' | 'gift' | 'bomb' | 'star' | 'roulette' | 'minigame_brick' | 'minigame_flappy'; // Special game mechanics
     category?: 'romantic' | 'spicy' | 'fun' | 'general';
     intensity?: 'soft' | 'medium' | 'spicy';
 }
@@ -1091,5 +1091,91 @@ export const GAME_CARDS: Card[] = [
         category: 'general',
         intensity: 'spicy',
         points: 3
+    },
+    // ========================================================================
+    // 🎲 ROULETTE CARDS
+    // ========================================================================
+    {
+        id: 'r1',
+        text: '¡LA RULETA DECIDE! Giramos para ver quién se bebe este chupito.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        specialEffect: 'roulette',
+        category: 'fun',
+        intensity: 'medium',
+        points: 5
+    },
+    {
+        id: 'r2',
+        text: '¡CAOS TOTAL! La ruleta elige quien manda una foto vergonzosa al grupo.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        specialEffect: 'roulette',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 10
+    },
+    {
+        id: 'r3',
+        text: 'La ruleta elige a la "Esclava" del turno. Debe obedecer una orden del grupo.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        specialEffect: 'roulette',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 5
+    },
+    {
+        id: 'r4',
+        text: '¡INTERCAMBIO! La ruleta decide con quién te cambias de ropa (o una prenda).',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        specialEffect: 'roulette',
+        category: 'fun',
+        intensity: 'spicy',
+        points: 5
+    },
+    {
+        id: 'r5',
+        text: 'La ruleta decide quién tiene que hacer 10 sentadillas ahora mismo.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        specialEffect: 'roulette',
+        category: 'fun',
+        intensity: 'medium',
+        points: 3
+    },
+    // Minigame Cards
+    {
+        id: 'mg1',
+        text: '¡HORA DEL RECREO! 🕹️\nJuega al Arkanoid para salvarte.',
+        type: 'challenge',
+        mode: 'statement',
+        category: 'fun',
+        intensity: 'medium',
+        specialEffect: 'minigame_brick'
+    },
+    {
+        id: 'mg2',
+        text: 'FLY OR DRINK 🍺\nDemuestra tu habilidad o bebe.',
+        type: 'challenge',
+        mode: 'statement',
+        category: 'fun',
+        intensity: 'medium',
+        specialEffect: 'minigame_flappy'
+    },
+    {
+        id: 'mg3',
+        text: 'RETO GAMER 🎮\nSi superas la puntuación en Arkanoid, mandas 5 tragos.',
+        type: 'challenge',
+        mode: 'statement',
+        category: 'fun',
+        intensity: 'spicy',
+        specialEffect: 'minigame_brick'
     }
 ];
