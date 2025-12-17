@@ -4,6 +4,12 @@ import { Text, View } from '@/components/Themed';
 import { GAME_CARDS, Card } from '@/constants/GameData';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
+import { Audio } from 'expo-av';
+import VictoryScreen from '@/components/game/VictoryScreen';
+import InfoModal from '@/components/game/InfoModal';
+import TimerModal from '@/components/game/TimerModal';
+import GameCard from '@/components/game/GameCard';
 
 // Fisher-Yates Shuffle Algorithm
 const shuffleArray = (array: Card[]) => {
@@ -13,6 +19,28 @@ const shuffleArray = (array: Card[]) => {
         [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
     }
     return newArray;
+};
+
+// Helper: Format card text with dynamic names
+const formatCardText = (text: string, players: string[], currentPlayer: string) => {
+    if (!text.includes('{player}')) return text;
+
+    // Get other players
+    const others = players.filter(p => p !== currentPlayer);
+    if (others.length === 0) return text.replace('{player}', 'alguien');
+
+    // Pick random player
+    const randomPlayer = others[Math.floor(Math.random() * others.length)];
+    return text.replace('{player}', randomPlayer);
+};
+
+// Helper: Haptics
+const playHaptic = (style: 'light' | 'medium' | 'heavy' = 'medium') => {
+    switch (style) {
+        case 'light': Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); break;
+        case 'medium': Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); break;
+        case 'heavy': Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); break;
+    }
 };
 
 export default function GameScreen() {
@@ -42,6 +70,31 @@ export default function GameScreen() {
     const [showInfoModal, setShowInfoModal] = useState(false);
     const [targetScore, setTargetScore] = useState(30);
     const [usedCardIds, setUsedCardIds] = useState<string[]>([]); // Track used card IDs
+
+    // Timer State
+    const [timerVisible, setTimerVisible] = useState(false);
+    const [timeLeft, setTimeLeft] = useState(10);
+    const [timerActive, setTimerActive] = useState(false);
+
+    // Timer Effect
+    useEffect(() => {
+        let interval: any;
+        if (timerActive && timeLeft > 0) {
+            interval = setInterval(() => {
+                setTimeLeft((prev) => prev - 1);
+            }, 1000);
+        } else if (timeLeft === 0 && timerActive) {
+            setTimerActive(false);
+            playHaptic('heavy');
+        }
+        return () => clearInterval(interval);
+    }, [timerActive, timeLeft]);
+
+    const startTimer = (seconds: number) => {
+        setTimeLeft(seconds);
+        setTimerActive(true);
+        setTimerVisible(true);
+    };
 
     // Game configuration
     const [selectedCategories, setSelectedCategories] = useState<string[]>(['romantic', 'spicy', 'fun', 'general']);
@@ -298,7 +351,13 @@ export default function GameScreen() {
         });
     };
 
-    const nextTurn = () => {
+    const nextTurn = async () => {
+        // Haptic feedback
+        playHaptic('light');
+
+        // Play sound (simulated for now, would need actual sound files)
+        // await playSound('flip');
+
         // Mark current card as used
         const currentCardId = activeDeck[currentCardIndex]?.id;
         let newUsedIds = [...usedCardIds];
@@ -371,6 +430,7 @@ export default function GameScreen() {
             if (newScores[player] >= targetScore && !winner) {
                 setWinner(player);
                 setGameState('victory');
+                playHaptic('heavy');
             }
 
             return newScores;
@@ -441,6 +501,7 @@ export default function GameScreen() {
     };
 
     const handleDrink = (customMessage?: string) => {
+        playHaptic('medium');
         setDrinkMessage(customMessage || '¡BEBE!');
         setModalVisible(true);
     };
@@ -504,16 +565,7 @@ export default function GameScreen() {
         }
     };
 
-    // Render logic based on mode
-    const renderIcon = () => {
-        switch (currentCard.type) {
-            case 'question': return <FontAwesome name="question-circle" size={40} color={colors.lightOrange} />;
-            case 'challenge': return <FontAwesome name="bolt" size={40} color={colors.pink} />;
-            case 'rule': return <FontAwesome name="gavel" size={40} color="#9b59b6" />; // Purple for rules
-            case 'viral': return <FontAwesome name="hashtag" size={40} color="#2ecc71" />; // Green for viral/status
-            default: return <FontAwesome name="gamepad" size={40} color={colors.pink} />;
-        }
-    }
+
 
     const renderConfigAndCustomModals = () => (
         <>
@@ -529,6 +581,38 @@ export default function GameScreen() {
                         <Text style={[styles.header, { color: colors.darkPink, marginBottom: 0 }]}>Configuración 🎮</Text>
                         <TouchableOpacity onPress={() => setShowConfigModal(false)} style={{ padding: 10 }}>
                             <FontAwesome name="close" size={24} color={colors.text} />
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Game Modes Presets */}
+                    <Text style={{ color: colors.text, fontWeight: 'bold', marginBottom: 10 }}>Modos Rápidos:</Text>
+                    <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
+                        <TouchableOpacity
+                            style={[styles.button, { backgroundColor: '#48dbfb', padding: 10, flex: 1 }]}
+                            onPress={() => {
+                                setSelectedCategories(['fun', 'general']);
+                                setSelectedIntensity('soft');
+                            }}
+                        >
+                            <Text style={[styles.buttonText, { fontSize: 12 }]}>🍦 Chill</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.button, { backgroundColor: '#ff6b6b', padding: 10, flex: 1 }]}
+                            onPress={() => {
+                                setSelectedCategories(['romantic', 'spicy']);
+                                setSelectedIntensity('spicy');
+                            }}
+                        >
+                            <Text style={[styles.buttonText, { fontSize: 12 }]}>🔥 Cita</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.button, { backgroundColor: '#a55eea', padding: 10, flex: 1 }]}
+                            onPress={() => {
+                                setSelectedCategories(['romantic', 'spicy', 'fun', 'general']);
+                                setSelectedIntensity('spicy');
+                            }}
+                        >
+                            <Text style={[styles.buttonText, { fontSize: 12 }]}>😈 Caos</Text>
                         </TouchableOpacity>
                     </View>
 
@@ -888,68 +972,12 @@ export default function GameScreen() {
                 </TouchableOpacity>
 
                 {/* Info Modal - Only in Setup Screen */}
-                <Modal
-                    animationType="slide"
-                    transparent={true}
+                <InfoModal
                     visible={showInfoModal}
-                    onRequestClose={() => setShowInfoModal(false)}
-                >
-                    <View style={styles.modalView}>
-                        <View style={[styles.modalContent, { backgroundColor: colors.modalBackground, maxHeight: '80%' }]}>
-                            <View style={[styles.modalHeader, { borderBottomColor: colors.purple }]}>
-                                <FontAwesome name="heart" size={30} color={colors.pink} />
-                                <Text style={[styles.modalTitle, { color: colors.text }]}>Sobre el Juego</Text>
-                            </View>
-                            <ScrollView style={{ width: '100%', marginTop: 15 }} showsVerticalScrollIndicator={true}>
-                                <Text style={[styles.infoText, { color: colors.text }]}>
-                                    <Text style={{ fontWeight: 'bold', fontSize: 18 }}>LesGo - Yo Nunca (Versión Bollera)</Text>
-                                </Text>
-
-                                <Text style={[styles.infoText, { color: colors.text, marginTop: 15 }]}>
-                                    Creado con 🌈 por <Text style={{ fontWeight: 'bold', color: colors.pink }}>Sofía Martínez López</Text>
-                                </Text>
-
-                                <Text style={[styles.infoSection, { color: colors.text }]}>Sobre el juego</Text>
-                                <Text style={[styles.infoText, { color: colors.text }]}>
-                                    Este es un juego de fiesta diseñado para divertirse entre amigas. Incluye preguntas, retos y mecánicas especiales inspiradas en la cultura lésbica y queer.
-                                </Text>
-
-                                <Text style={[styles.infoSection, { color: colors.text }]}>Disclaimer Legal</Text>
-                                <Text style={[styles.infoText, { color: colors.text }]}>
-                                    • Este juego NO promueve el consumo de alcohol.{'\n'}
-                                    • Puedes jugarlo con cualquier tipo de bebida (refrescos, agua, zumos, etc.).{'\n'}
-                                    • Si decides jugar con alcohol, hazlo de forma responsable.{'\n'}
-                                    • No conduzcas si has bebido.{'\n'}
-                                    • Respeta siempre los límites de cada persona.
-                                </Text>
-
-                                <Text style={[styles.infoSection, { color: colors.text }]}>Cómo ganar</Text>
-                                <Text style={[styles.infoText, { color: colors.text }]}>
-                                    • La primera persona en llegar a {targetScore} puntos gana la ronda.{'\n'}
-                                    • ¡Pero la fiesta sigue! Podéis elegir continuar hasta la siguiente meta (+30 puntos) infinitamente.
-                                </Text>
-
-                                <Text style={[styles.infoSection, { color: colors.text }]}>Sistema de Puntos</Text>
-                                <Text style={[styles.infoText, { color: colors.text }]}>
-                                    🟢 Suave: 1 punto{'\n'}
-                                    🟡 Medio: 2 puntos{'\n'}
-                                    🔴 Picante: 3 puntos{'\n'}
-                                    ⚡ Retos y Cartas Especiales: ¡Puntos extra!
-                                </Text>
-
-                                <Text style={[styles.infoText, { color: colors.text, marginTop: 20, fontSize: 12, opacity: 0.6, textAlign: 'center' }]}>
-                                    Versión 1.0 • 2024
-                                </Text>
-                            </ScrollView>
-                            <TouchableOpacity
-                                style={[styles.modalButton, { backgroundColor: colors.pink, marginTop: 15 }]}
-                                onPress={() => setShowInfoModal(false)}
-                            >
-                                <Text style={styles.buttonText}>Cerrar</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </Modal>
+                    onClose={() => setShowInfoModal(false)}
+                    colors={colors}
+                    targetScore={targetScore}
+                />
                 {renderConfigAndCustomModals()}
             </View >
         );
@@ -959,7 +987,7 @@ export default function GameScreen() {
         return (
             <>
                 <VictoryScreen
-                    winner={winner}
+                    winner={winner || ''}
                     scores={playerScores}
                     onContinue={continueGame}
                     onReset={resetGame}
@@ -1010,15 +1038,13 @@ export default function GameScreen() {
                 </TouchableOpacity>
             </View>
 
-            <View style={[styles.card, { backgroundColor: colors.cardBackground }]}>
-                <View style={styles.iconContainer}>
-                    {renderIcon()}
-                </View>
-                <Text style={[styles.cardType, { color: colors.darkPink, marginBottom: 10 }]}>
-                    {currentCard.type.toUpperCase()} {customCards.some(c => c.id === currentCard.id) ? '👑' : ''}
-                </Text>
-                <Text style={[styles.cardText, { color: colors.text }]}>{currentCard.text}</Text>
-            </View>
+            <GameCard
+                card={currentCard}
+                formattedText={formatCardText(currentCard.text, players, players[currentPlayerIndex])}
+                isCustom={customCards.some(c => c.id === currentCard.id)}
+                colors={colors}
+                onTimerStart={() => startTimer(10)}
+            />
 
             <View style={styles.buttonContainer}>
                 {currentCard.mode === 'binary' ? (
@@ -1195,50 +1221,20 @@ export default function GameScreen() {
             </Modal>
 
             {renderConfigAndCustomModals()}
+
+            {/* Timer Modal */}
+            <TimerModal
+                visible={timerVisible}
+                timeLeft={timeLeft}
+                onClose={() => { setTimerVisible(false); setTimerActive(false); }}
+                onStartTimer={startTimer}
+                colors={colors}
+            />
         </View>
     );
 }
 
-// Victory Screen
-function VictoryScreen({ winner, scores, onContinue, onReset, colors, targetScore }: any) {
-    return (
-        <View style={styles.container}>
-            <Text style={[styles.header, { color: colors.darkPink }]}>¡VICTORIA!</Text>
-            <FontAwesome name="trophy" size={100} color={colors.orange} style={{ marginVertical: 30 }} />
-            <Text style={[styles.winnerText, { color: colors.text }]}>{winner}</Text>
-            <Text style={[styles.winnerSubtext, { color: colors.text }]}>ha ganado con {scores[winner]} puntos</Text>
 
-            <View style={styles.finalScoreboard}>
-                <Text style={[styles.scoreboardTitle, { color: colors.text }]}>Clasificación Final</Text>
-                {Object.entries(scores)
-                    .sort(([, a]: any, [, b]: any) => b - a)
-                    .map(([player, score]: any, index) => (
-                        <View key={index} style={styles.scoreRow}>
-                            <Text style={[styles.scorePlayerName, { color: colors.text }]}>
-                                {index === 0 ? '🥇 ' : index === 1 ? '🥈 ' : index === 2 ? '🥉 ' : ''}{player}
-                            </Text>
-                            <Text style={[styles.scorePoints, { color: colors.darkPink }]}>
-                                {score} pts
-                            </Text>
-                        </View>
-                    ))}
-            </View>
-
-            <TouchableOpacity
-                style={[styles.startButton, { backgroundColor: colors.pink, marginTop: 30 }]}
-                onPress={onContinue}
-            >
-                <Text style={styles.startButtonText}>CONTINUAR (A LOS {targetScore ? targetScore + 30 : 60})</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-                style={[styles.resetButton, { marginTop: 20 }]}
-                onPress={onReset}
-            >
-                <Text style={{ color: colors.darkPink }}>Terminar y Volver al Inicio</Text>
-            </TouchableOpacity>
-        </View>
-    );
-}
 
 const styles = StyleSheet.create({
     container: {
