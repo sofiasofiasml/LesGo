@@ -40,6 +40,8 @@ export default function GameScreen() {
     const [showExitConfirm, setShowExitConfirm] = useState(false);
     const [currentRound, setCurrentRound] = useState(1);
     const [showInfoModal, setShowInfoModal] = useState(false);
+    const [targetScore, setTargetScore] = useState(30);
+    const [usedCardIds, setUsedCardIds] = useState<string[]>([]); // Track used card IDs
 
     // Game configuration
     const [selectedCategories, setSelectedCategories] = useState<string[]>(['romantic', 'spicy', 'fun', 'general']);
@@ -210,24 +212,26 @@ export default function GameScreen() {
                 const cardIntensity = card.intensity || 'medium';
                 const cardLevel = intensityLevels[cardIntensity] || 2; // Default to medium
 
-                // Category check: Must be in selected categories
+                // Category check
                 const categoryMatch = selectedCategories.includes(cardCategory);
-
-                // Intensity check: cumulative (e.g. Medium includes Soft and Medium)
+                // Intensity check
                 const intensityMatch = cardLevel <= selectedLevel;
+                // Round 1 filter: No special effects
+                const round1Match = !card.specialEffect;
 
-                return categoryMatch && intensityMatch;
+                return categoryMatch && intensityMatch && round1Match;
             });
 
-            // Ensure we have at least some cards, fallback if filter removes all
-            const deckToUse = filteredCards.length > 0 ? filteredCards : allCards;
+            // Ensure we have at least some cards
+            const deckToUse = filteredCards.length > 0 ? filteredCards : allCards.filter(c => !c.specialEffect);
 
-            // Filter out special cards for first round
-            const firstRoundCards = deckToUse.filter(card => !card.specialEffect);
-            setDeck(shuffleArray(firstRoundCards));
+            setDeck(shuffleArray(deckToUse));
             setCurrentCardIndex(0);
             setCurrentPlayerIndex(0);
             setCurrentRound(1);
+            setTargetScore(30);
+            setUsedCardIds([]);
+
             // Initialize scores
             const initialScores: Record<string, number> = {};
             players.forEach(player => initialScores[player] = 0);
@@ -243,8 +247,7 @@ export default function GameScreen() {
     const resetGame = () => {
         setShowExitConfirm(false);
         setGameState('setup');
-        // Keep players list - don't clear it
-        // setPlayers([]);
+        // Keep players list
         setCurrentPlayerIndex(0);
         setPlayerScores({});
         setDirection(1);
@@ -252,6 +255,8 @@ export default function GameScreen() {
         setSkipNext(false);
         setWinner(null);
         setCurrentRound(1);
+        setTargetScore(30);
+        setUsedCardIds([]);
     };
 
     const handleExitClick = () => {
@@ -263,6 +268,7 @@ export default function GameScreen() {
     };
 
     const continueGame = () => {
+        setTargetScore(prev => prev + 30);
         setGameState('playing');
         setWinner(null);
     };
@@ -273,7 +279,34 @@ export default function GameScreen() {
     const currentCard: Card = activeDeck[currentCardIndex % activeDeck.length];
     const currentPlayer = players[currentPlayerIndex];
 
+    // Helper to get fresh candidates based on config and round
+    const getCardCandidates = (isRound2Plus: boolean) => {
+        const intensityLevels = { 'soft': 1, 'medium': 2, 'spicy': 3 };
+        const selectedLevel = intensityLevels[selectedIntensity];
+        const allCards = [...GAME_CARDS, ...customCards];
+
+        return allCards.filter(card => {
+            const cardCategory = card.category || 'general';
+            const cardIntensity = card.intensity || 'medium';
+            const cardLevel = intensityLevels[cardIntensity] || 2;
+
+            const categoryMatch = selectedCategories.includes(cardCategory);
+            const intensityMatch = cardLevel <= selectedLevel;
+            const roundMatch = isRound2Plus ? true : !card.specialEffect;
+
+            return categoryMatch && intensityMatch && roundMatch;
+        });
+    };
+
     const nextTurn = () => {
+        // Mark current card as used
+        const currentCardId = activeDeck[currentCardIndex]?.id;
+        let newUsedIds = [...usedCardIds];
+        if (currentCardId && !newUsedIds.includes(currentCardId)) {
+            newUsedIds.push(currentCardId);
+            setUsedCardIds(newUsedIds);
+        }
+
         // Calculate next player index based on direction
         let nextIndex = currentPlayerIndex + direction;
         if (nextIndex >= players.length) nextIndex = 0;
@@ -289,46 +322,38 @@ export default function GameScreen() {
         }
 
         setCurrentPlayerIndex(nextIndex);
-        setCurrentCardIndex((prev) => (prev + 1) % activeDeck.length);
 
-        // Check if we completed a full round (all players played)
-        if (nextIndex === 0 && currentRound === 1) {
-            // Start round 2 - now include special cards
-            setCurrentRound(2);
+        // Check if we need to refill/reshuffle deck
+        if (currentCardIndex + 1 >= activeDeck.length) {
+            // Deck finished
 
-            // Re-apply filters for round 2 deck
-            const intensityLevels = { 'soft': 1, 'medium': 2, 'spicy': 3 };
-            const selectedLevel = intensityLevels[selectedIntensity];
-            const allCards = [...GAME_CARDS, ...customCards];
+            // Advance round if needed (Round 1 -> 2)
+            let nextRound = currentRound;
+            if (currentRound === 1 && nextIndex === 0) { // Or simply if deck runs out? Let's say if deck runs out we allow Round 2 mechanics now
+                nextRound = 2;
+                setCurrentRound(2);
+            } else if (currentRound === 1) {
+                // Deck ran out but not full circle of players? Rare if deck is large, but let's allow special cards now anyway if deck exhausted
+                nextRound = 2;
+                setCurrentRound(2);
+            }
 
-            const filteredCards = allCards.filter(card => {
-                const cardCategory = card.category || 'general';
-                const cardIntensity = card.intensity || 'medium';
-                const cardLevel = intensityLevels[cardIntensity] || 2;
-                return selectedCategories.includes(cardCategory) && cardLevel <= selectedLevel;
-            });
-            const deckToUse = filteredCards.length > 0 ? filteredCards : allCards;
+            const candidates = getCardCandidates(nextRound >= 2);
 
-            setDeck(shuffleArray(deckToUse)); // Include all cards now (special effects allowed)
+            // Filter out used cards
+            let available = candidates.filter(c => !newUsedIds.includes(c.id));
+
+            // If we ran out of unique cards, recycle!
+            if (available.length === 0) {
+                setUsedCardIds([]); // Reset history
+                newUsedIds = [];
+                available = candidates; // Use all candidates again
+            }
+
+            setDeck(shuffleArray(available));
             setCurrentCardIndex(0);
-        }
-        // Reshuffle if we looped through the deck
-        else if ((currentCardIndex + 1) % activeDeck.length === 0) {
-            // Keep using all cards after round 2
-            const intensityLevels = { 'soft': 1, 'medium': 2, 'spicy': 3 };
-            const selectedLevel = intensityLevels[selectedIntensity];
-            const allCards = [...GAME_CARDS, ...customCards];
-
-            const filteredCards = allCards.filter(card => {
-                const cardCategory = card.category || 'general';
-                const cardIntensity = card.intensity || 'medium';
-                const cardLevel = intensityLevels[cardIntensity] || 2;
-                return selectedCategories.includes(cardCategory) && cardLevel <= selectedLevel;
-            });
-            const deckToUse = filteredCards.length > 0 ? filteredCards : allCards;
-
-            const cardsToUse = currentRound >= 2 ? deckToUse : deckToUse.filter(card => !card.specialEffect);
-            setDeck(shuffleArray(cardsToUse));
+        } else {
+            setCurrentCardIndex((prev) => prev + 1);
         }
 
         // Reset double points after use
@@ -343,7 +368,7 @@ export default function GameScreen() {
             newScores[player] = Math.max(0, (newScores[player] || 0) + points);
 
             // Check for victory
-            if (newScores[player] >= 100 && !winner) {
+            if (newScores[player] >= targetScore && !winner) {
                 setWinner(player);
                 setGameState('victory');
             }
@@ -898,12 +923,18 @@ export default function GameScreen() {
                                     • Respeta siempre los límites de cada persona.
                                 </Text>
 
-                                <Text style={[styles.infoSection, { color: colors.text }]}>Cómo jugar</Text>
+                                <Text style={[styles.infoSection, { color: colors.text }]}>Cómo ganar</Text>
                                 <Text style={[styles.infoText, { color: colors.text }]}>
-                                    1. Añade jugadoras (mínimo 2){'\n'}
-                                    2. Las cartas especiales aparecen desde la ronda 2{'\n'}
-                                    3. Primera en llegar a 100 puntos gana{'\n'}
-                                    4. ¡Diviértete!
+                                    • La primera persona en llegar a {targetScore} puntos gana la ronda.{'\n'}
+                                    • ¡Pero la fiesta sigue! Podéis elegir continuar hasta la siguiente meta (+30 puntos) infinitamente.
+                                </Text>
+
+                                <Text style={[styles.infoSection, { color: colors.text }]}>Sistema de Puntos</Text>
+                                <Text style={[styles.infoText, { color: colors.text }]}>
+                                    🟢 Suave: 1 punto{'\n'}
+                                    🟡 Medio: 2 puntos{'\n'}
+                                    🔴 Picante: 3 puntos{'\n'}
+                                    ⚡ Retos y Cartas Especiales: ¡Puntos extra!
                                 </Text>
 
                                 <Text style={[styles.infoText, { color: colors.text, marginTop: 20, fontSize: 12, opacity: 0.6, textAlign: 'center' }]}>
@@ -933,6 +964,7 @@ export default function GameScreen() {
                     onContinue={continueGame}
                     onReset={resetGame}
                     colors={colors}
+                    targetScore={targetScore}
                 />
                 {renderConfigAndCustomModals()}
             </>
@@ -1168,7 +1200,7 @@ export default function GameScreen() {
 }
 
 // Victory Screen
-function VictoryScreen({ winner, scores, onContinue, onReset, colors }: any) {
+function VictoryScreen({ winner, scores, onContinue, onReset, colors, targetScore }: any) {
     return (
         <View style={styles.container}>
             <Text style={[styles.header, { color: colors.darkPink }]}>¡VICTORIA!</Text>
@@ -1196,7 +1228,7 @@ function VictoryScreen({ winner, scores, onContinue, onReset, colors }: any) {
                 style={[styles.startButton, { backgroundColor: colors.pink, marginTop: 30 }]}
                 onPress={onContinue}
             >
-                <Text style={styles.startButtonText}>CONTINUAR JUGANDO</Text>
+                <Text style={styles.startButtonText}>CONTINUAR (A LOS {targetScore ? targetScore + 30 : 60})</Text>
             </TouchableOpacity>
             <TouchableOpacity
                 style={[styles.resetButton, { marginTop: 20 }]}
