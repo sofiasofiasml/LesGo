@@ -469,7 +469,10 @@ export default function GameScreen() {
             name: selected.name,
             description: selected.description,
             icon: selected.icon,
-            onPlay: selected.action
+            onPlay: () => {
+                setPendingMinigame(null); // CLEAR THE INTRO CARD
+                selected.action(); // Open the minigame modal
+            }
         });
     };
 
@@ -537,13 +540,14 @@ export default function GameScreen() {
         if (effect === 'minigame_box') { setTimeout(() => setShowGiftBox(true), 500); return; }
 
         // Arcade Mode Random Exception
+        // Arcade Mode Random Exception
         if (isArcadeMode && !effect) {
-            const arcadeRoll = Math.random();
-            if (arcadeRoll > 0.94) { setTimeout(() => setShowBrickBreaker(true), 500); return; }
-            else if (arcadeRoll > 0.88) { setTimeout(() => setShowFlappyDrink(true), 500); return; }
-            else if (arcadeRoll > 0.82) { setTimeout(() => setShowFastTapper(true), 500); return; }
-            else if (arcadeRoll > 0.76) { setTimeout(() => setShowReflexDuel(true), 500); return; }
-            else if (arcadeRoll > 0.70) { setTimeout(() => setShowMemoryChallenge(true), 500); return; }
+            // 25% Chance to trigger a minigame "card"
+            if (Math.random() > 0.75) {
+                setCurrentPlayerIndex(nextPlayerIndex); // FIX: Move to next player BEFORE minigame
+                triggerRandomMinigame();
+                return;
+            }
         }
 
         // TURN LOGIC (Normal Mode)
@@ -650,11 +654,15 @@ export default function GameScreen() {
 
     const handlePlayerSelection = (selectedPlayer: string) => {
         if (selectionAction === 'steal') {
-            // Steal 10 points (can go negative)
+            // Steal up to 10 points, but strictly what the victim has (Floor at 0)
             setPlayerScores(prev => {
                 const newScores = { ...prev };
-                newScores[selectedPlayer] = (newScores[selectedPlayer] || 0) - 10; // Can go negative
-                newScores[currentPlayer] = (newScores[currentPlayer] || 0) + 10;
+                const victimScore = newScores[selectedPlayer] || 0;
+                // Calculate standard steal amount (e.g. 10), but cap at victim's score
+                const actualSteal = Math.max(0, Math.min(victimScore, 10));
+
+                newScores[selectedPlayer] = victimScore - actualSteal; // Will be >= 0
+                newScores[currentPlayer] = (newScores[currentPlayer] || 0) + actualSteal;
                 return newScores;
             });
         } else if (selectionAction === 'gift') {
@@ -677,43 +685,58 @@ export default function GameScreen() {
         nextTurn();
     };
 
+    const handleChallengeFail = () => {
+        // User failed the challenge -> Drink -> Gain Points
+        const points = currentCard.points || 1;
+        addPoints(currentPlayer, points);
+        handleDrink(`¡Has bebido!\n(${points} Trago${points > 1 ? 's' : ''})`);
+        // handleDrink opens modal, its close function calls nextTurn
+    };
+
     const handleChoice = (choice: 'yes' | 'no') => {
-        // Points logic based on card type and answer
+        // DRINK = POINTS logic
+        // If the choice triggers a drink, you gain points (drunk score).
+        // If the choice is safe, you get 0 points.
+
         const basePoints = currentCard.points || 1;
         const finalPoints = doublePoints ? basePoints * 2 : basePoints;
 
-        // For "Yo nunca" questions: Yes = you did it (lose points), No = you didn't (gain points)
-        if (currentCard.type === 'question') {
-            if (choice === 'no') {
-                addPoints(currentPlayer, finalPoints); // Didn't do it, gain points
-            } else {
-                addPoints(currentPlayer, -finalPoints); // Did it, lose points
-            }
-        } else {
-            // For challenges and other types, always gain points
-            addPoints(currentPlayer, finalPoints);
-        }
+        // Reset double points if used
+        if (doublePoints) setDoublePoints(false);
 
         // Handle special effects
         if (currentCard.specialEffect) {
             handleSpecialEffect(currentCard.specialEffect);
+            // If steal, we wait for selection, but we assume no points for the act of stealing itself unless specified
             if (currentCard.specialEffect === 'steal') {
-                return; // Wait for player selection
+                return;
             }
         }
 
+        // Check if we need to drink
         if (currentCard.drinkTrigger === choice) {
+            // DRINK -> Points Increase
+            addPoints(currentPlayer, finalPoints);
             handleDrink(currentCard.drinkAction);
         } else {
+            // SAFE -> No Points
+            addPoints(currentPlayer, 0);
             nextTurn();
         }
     };
 
     const handleContinue = () => {
-        // Award points for statement/rule cards
+        // Award points ONLY if it is a rigid drinking card (e.g. viral/rule)
         const basePoints = currentCard.points || 1;
         const finalPoints = doublePoints ? basePoints * 2 : basePoints;
-        addPoints(currentPlayer, finalPoints);
+
+        if (currentCard.drinkTrigger === 'always') {
+            // It's a drinking card -> Add Points
+            addPoints(currentPlayer, finalPoints);
+        } else {
+            // Just info/game -> 0 Points
+            addPoints(currentPlayer, 0);
+        }
 
         // Handle special effects
         if (currentCard.specialEffect) {
@@ -1138,7 +1161,7 @@ export default function GameScreen() {
     // --- RENDER ---
     if (gameState === 'setup') {
         return (
-            <View style={styles.container}>
+            <View style={[styles.container, { paddingTop: 50 }]}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 20 }}>
                     <Text style={[styles.header, { color: colors.darkPink }]}>LesGo 🌈</Text>
                     <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -1218,13 +1241,23 @@ export default function GameScreen() {
 
     return (
         <View style={styles.container}>
-            <View style={styles.headerButtons}>
-                <TouchableOpacity style={styles.scoreButton} onPress={() => setShowScoreboard(true)}>
-                    <FontAwesome name="trophy" size={24} color={colors.gold} />
-                    <Text style={[styles.scoreText, { color: colors.text }]}>{playerScores[currentPlayer] || 0} pts</Text>
+            <View style={styles.headerRow}>
+                {/* Left: Ranking/Clasificación */}
+                <TouchableOpacity style={styles.rankingButton} onPress={() => setShowScoreboard(true)}>
+                    <FontAwesome name="trophy" size={20} color={colors.white} />
+                    <Text style={{ color: colors.white, fontSize: 12, fontWeight: 'bold', marginLeft: 5 }}>Ranking</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity onPress={handleExitClick} style={[styles.scoreButton, { marginLeft: 10, backgroundColor: 'rgba(255,0,0,0.2)' }]}>
+                {/* Center: Current Player Score for visibility */}
+                <View style={{ alignItems: 'center' }}>
+                    <Text style={{ color: colors.text, fontSize: 12, opacity: 0.6, fontWeight: 'bold' }}>PUNTUACIÓN</Text>
+                    <Text style={{ color: colors.pink, fontSize: 24, fontWeight: '900' }}>
+                        {playerScores[currentPlayer] || 0}
+                    </Text>
+                </View>
+
+                {/* Right: Exit */}
+                <TouchableOpacity onPress={handleExitClick} style={styles.iconButton}>
                     <FontAwesome name="times" size={24} color={colors.text} />
                 </TouchableOpacity>
             </View>
@@ -1240,23 +1273,54 @@ export default function GameScreen() {
                 )
             }
 
-            {/* Current Player Score */}
-            <View style={styles.currentScoreBar}>
-                <View style={styles.currentScoreInfo}>
-                    <Text style={[styles.currentScoreLabel, { color: colors.text }]}>Tu puntuación:</Text>
-                    <Text style={[styles.currentScoreValue, { color: colors.darkPink }]}>
-                        {playerScores[currentPlayer] || 0} pts
-                    </Text>
-                </View>
-                <TouchableOpacity onPress={() => setShowScoreboard(true)} style={styles.viewAllButton}>
-                    <FontAwesome name="list" size={16} color={colors.white} />
-                    <Text style={{ color: colors.white, marginLeft: 5, fontSize: 12 }}>Ver todas</Text>
-                </TouchableOpacity>
-            </View>
+            {/* Top Bar Logic */
+                // 1. Minigame Active (Playing) -> HIDE HEADER (Prevents overlap with game canvas)
+                (showBrickBreaker || showFlappyDrink || showFortuneRoulette || showFastTapper || showMemoryChallenge || showReflexDuel || showStopTheBus || showGiftBox || showRoulette) ? (
+                    null
+                ) :
+                    // 2. Pending Minigame (Intro Card) -> LARGE HEADER (Turn + Ranking Centered)
+                    pendingMinigame ? (
+                        <View style={{ width: '100%', alignItems: 'center', marginBottom: 20, zIndex: 100, elevation: 20 }}>
+                            {/* Centered Ranking Button */}
+                            <TouchableOpacity
+                                onPress={() => setShowScoreboard(true)}
+                                style={[styles.viewAllButton, { backgroundColor: colors.purple, alignSelf: 'center', paddingHorizontal: 20, marginBottom: 15 }]}
+                            >
+                                <FontAwesome name="list" size={16} color={colors.white} />
+                                <Text style={{ color: colors.white, marginLeft: 8, fontSize: 16, fontWeight: 'bold' }}>
+                                    Ver Ranking
+                                </Text>
+                            </TouchableOpacity>
+
+                            {/* Large Turn Title */}
+                            <Text style={{ fontSize: 18, color: colors.text, opacity: 0.8, marginBottom: 5 }}>Turno de:</Text>
+                            <Text style={{ fontSize: 36, fontWeight: 'bold', color: colors.darkPink, marginBottom: 5 }}>
+                                {players[currentPlayerIndex]}
+                            </Text>
+                        </View>
+                    ) : (
+                        // 3. Standard Card Mode -> STANDARD HEADER (Small)
+                        // 3. Standard Card Mode -> NEW LARGE HEADER
+                        // 3. Standard Card Mode -> NEW LARGE HEADER (Name Only)
+                        <View style={{ width: '100%', alignItems: 'center', marginBottom: 30 }}>
+                            <Text style={{ fontSize: 16, color: colors.text, opacity: 0.6, marginBottom: 10, letterSpacing: 2 }}>
+                                TURNO DE
+                            </Text>
+                            <Text style={{
+                                fontSize: 42,
+                                fontWeight: '900',
+                                color: colors.text,
+                                textAlign: 'center',
+                                lineHeight: 50 // Better for long names
+                            }}>
+                                {players[currentPlayerIndex]}
+                            </Text>
+                        </View>
+                    )}
 
             {pendingMinigame ? (
                 // Minigame Intro Card
-                <View style={{ flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: '100%', alignItems: 'center', justifyContent: 'center' }}>
                     <View style={{
                         width: '90%',
                         aspectRatio: 0.7, // Card shape
@@ -1271,6 +1335,14 @@ export default function GameScreen() {
                         shadowOpacity: 0.25,
                         shadowRadius: 3.84,
                     }}>
+                        {/* Identify WHO plays the minigame */}
+                        <Text style={{ fontSize: 16, color: colors.text, opacity: 0.6, marginBottom: 5 }}>
+                            TURNO DE:
+                        </Text>
+                        <Text style={{ fontSize: 32, fontWeight: 'bold', color: colors.darkPink, marginBottom: 20 }}>
+                            {players[currentPlayerIndex]}
+                        </Text>
+
                         <FontAwesome name={pendingMinigame.icon as any} size={80} color={colors.purple} style={{ marginBottom: 30 }} />
                         <Text style={{ fontSize: 28, fontWeight: 'bold', color: colors.text, marginBottom: 15, textAlign: 'center' }}>
                             {pendingMinigame.name}
@@ -1278,10 +1350,6 @@ export default function GameScreen() {
                         <Text style={{ fontSize: 18, color: colors.text, textAlign: 'center', opacity: 0.8, marginBottom: 30, lineHeight: 24 }}>
                             {pendingMinigame.description}
                         </Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.05)', padding: 10, borderRadius: 15 }}>
-                            <Text style={{ fontSize: 16, color: colors.text, marginRight: 5 }}>Turno de:</Text>
-                            <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.darkPink }}>{players[currentPlayerIndex]}</Text>
-                        </View>
                     </View>
 
                     <View style={styles.buttonContainer}>
@@ -1324,20 +1392,30 @@ export default function GameScreen() {
                             </>
                         ) : (
                             <>
-                                {/* Statement / Rule Handling */}
+                                {/* Statement / Rule / Challenge Handling */}
+                                {/* Button 2: FAILED / DRINK (New) */}
+                                <TouchableOpacity
+                                    style={[styles.button, { backgroundColor: colors.orange, marginRight: 10 }]}
+                                    onPress={handleChallengeFail}
+                                >
+                                    <Text style={styles.buttonText}>FAIL</Text>
+                                </TouchableOpacity>
+
+                                {/* Button 1: SUCCESS / NEXT */}
                                 <TouchableOpacity
                                     style={[styles.button, { backgroundColor: isRouletteMode ? colors.purple : colors.pink }]}
                                     onPress={nextTurn}
                                 >
                                     <Text style={styles.buttonText}>
-                                        {isRouletteMode ? '🎲 GIRAR (SIGUIENTE)' : currentCard.mode === 'rule' ? 'ACEPTO' : 'SIGUIENTE'}
+                                        {isRouletteMode ? '🎲 GIRAR' : currentCard.mode === 'rule' ? 'ACEPTO' : 'HECHO'}
                                     </Text>
                                 </TouchableOpacity>
                             </>
                         )}
                     </View>
                 </>
-            )}
+            )
+            }
 
 
 
@@ -1509,8 +1587,13 @@ export default function GameScreen() {
                 visible={showBrickBreaker}
                 onClose={(success) => {
                     setShowBrickBreaker(false);
-                    if (success) playHaptic('heavy');
-                    else handleDrink('¡HAS PERDIDO!');
+                    if (success) {
+                        playHaptic('heavy');
+                        addPoints(players[currentPlayerIndex], 0); // Safe -> 0
+                    } else {
+                        handleDrink('¡HAS PERDIDO!\n(3 Tragos)');
+                        addPoints(players[currentPlayerIndex], 3); // Lose -> 3 Drinks -> 3 Points
+                    }
                     nextTurn();
                 }}
                 colors={colors}
@@ -1520,7 +1603,12 @@ export default function GameScreen() {
                 visible={showFlappyDrink}
                 onClose={(success) => {
                     setShowFlappyDrink(false);
-                    if (!success) handleDrink('¡HAS CHOCADO!');
+                    if (success) {
+                        addPoints(players[currentPlayerIndex], 0);
+                    } else {
+                        handleDrink('¡HAS CHOCADO!\n(3 Tragos)');
+                        addPoints(players[currentPlayerIndex], 3);
+                    }
                     nextTurn();
                 }}
                 colors={colors}
@@ -1536,7 +1624,12 @@ export default function GameScreen() {
                 visible={showFastTapper}
                 onClose={(success) => {
                     setShowFastTapper(false);
-                    if (!success) handleDrink('¡PULSACIONES CARDÍACAS BAJAS!');
+                    if (success) {
+                        addPoints(players[currentPlayerIndex], 0);
+                    } else {
+                        handleDrink('¡MUY LENTO!\n(3 Tragos)');
+                        addPoints(players[currentPlayerIndex], 3);
+                    }
                     nextTurn();
                 }}
                 colors={colors}
@@ -1546,7 +1639,12 @@ export default function GameScreen() {
                 visible={showMemoryChallenge}
                 onClose={(success) => {
                     setShowMemoryChallenge(false);
-                    if (!success) handleDrink('¡MEMORIA DE PEZ!');
+                    if (success) {
+                        addPoints(players[currentPlayerIndex], 0);
+                    } else {
+                        handleDrink('¡MEMORIA DE PEZ!\n(3 Tragos)');
+                        addPoints(players[currentPlayerIndex], 3);
+                    }
                     nextTurn();
                 }}
                 colors={colors}
@@ -1556,7 +1654,12 @@ export default function GameScreen() {
                 visible={showReflexDuel}
                 onClose={(success) => {
                     setShowReflexDuel(false);
-                    if (!success) handleDrink('¡BANG! ESTÁS MUERTO.');
+                    if (success) {
+                        addPoints(players[currentPlayerIndex], 0);
+                    } else {
+                        handleDrink('¡BANG! ESTÁS MUERTO.\n(3 Tragos)');
+                        addPoints(players[currentPlayerIndex], 3);
+                    }
                     nextTurn();
                 }}
                 colors={colors}
@@ -1566,7 +1669,12 @@ export default function GameScreen() {
                 visible={showStopTheBus}
                 onClose={(success) => {
                     setShowStopTheBus(false);
-                    if (!success) handleDrink('¡TE HAS PASADO!');
+                    if (success) {
+                        addPoints(players[currentPlayerIndex], 0);
+                    } else {
+                        handleDrink('¡TE HAS PASADO!\n(3 Tragos)');
+                        addPoints(players[currentPlayerIndex], 3);
+                    }
                     nextTurn();
                 }}
                 colors={colors}
@@ -1576,7 +1684,12 @@ export default function GameScreen() {
                 visible={showGiftBox}
                 onClose={(success) => {
                     setShowGiftBox(false);
-                    if (!success) handleDrink('¡BOMBAZO!');
+                    if (success) {
+                        addPoints(players[currentPlayerIndex], 0);
+                    } else {
+                        handleDrink('¡BOMBAZO!\n(3 Tragos)');
+                        addPoints(players[currentPlayerIndex], 3);
+                    }
                     nextTurn();
                 }}
                 colors={colors}
@@ -1593,8 +1706,9 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         alignItems: 'center',
+        justifyContent: 'center',
         padding: 20,
-        paddingTop: 45,
+        paddingTop: 120, // Increased to clear absolute header buttons
     },
     header: {
         fontSize: 32,
@@ -1659,13 +1773,7 @@ const styles = StyleSheet.create({
         letterSpacing: 1,
     },
     // Game UI
-    headerRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        width: '100%',
-        marginBottom: 20,
-    },
+
     turnInfo: {
         alignItems: 'center',
     },
@@ -1781,28 +1889,35 @@ const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
     },
-    headerButtons: {
+    headerRow: {
         position: 'absolute',
         top: 60,
+        left: 20,
         right: 20,
         zIndex: 10,
         flexDirection: 'row',
+        justifyContent: 'space-between',
         alignItems: 'center',
     },
-    // Points System Styles
-    scoreButton: {
+    rankingButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 10,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        paddingHorizontal: 15,
+        paddingVertical: 10,
+        backgroundColor: '#E91E8C', // Pink
         borderRadius: 20,
-        gap: 8
     },
-    scoreText: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: 'white',
+    // Points System Styles
+    iconButton: {
+        padding: 12,
+        borderRadius: 50,
+        backgroundColor: 'rgba(255,255,255,0.1)', // Glassmorphism feel
+        width: 50,
+        height: 50,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
+    // Removed old scoreButton/scoreText styles
     effectsBar: {
         flexDirection: 'row',
         flexWrap: 'wrap',
@@ -1880,6 +1995,8 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(211, 98, 164, 0.1)',
         borderRadius: 15,
         marginBottom: 15,
+        zIndex: 100, // Ensure it stays on top
+        elevation: 20, // Android z-index fix
     },
     currentScoreInfo: {
         flexDirection: 'row',

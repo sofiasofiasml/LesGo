@@ -248,7 +248,7 @@ export const GAME_CARDS: Card[] = [
     },
     {
         id: 'f2',
-        text: '¿Sabes quién es Shane McCutcheon? Si no lo sabes, bebe por falta de cultura.',
+        text: '¿Sabes quién es Ana Legazpi? Si no lo sabes, bebe por falta de cultura.',
         type: 'question',
         mode: 'binary',
         drinkTrigger: 'no',
@@ -467,7 +467,7 @@ export const GAME_CARDS: Card[] = [
     },
     {
         id: 'g13',
-        text: 'Bebe si alguna vez has shippeado a dos amigas que no estaban juntas.',
+        text: 'Bebe si alguna vez has imaginado una relación entre dos amigas que no eran pareja.',
         type: 'viral',
         mode: 'statement',
         drinkTrigger: 'always',

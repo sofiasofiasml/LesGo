@@ -57,6 +57,7 @@ export default function InfoModal({ visible, onClose, colors, targetScore }: Inf
                             🟢 Suave: 1 punto{'\n'}
                             🟡 Medio: 2 puntos{'\n'}
                             🔴 Picante: 3 puntos{'\n'}
+                            🕹️ Minijuegos: +10 pts (Victoria) / -3 pts (Derrota){'\n'}
                             ⚡ Retos y Cartas Especiales: ¡Puntos extra!
                         </Text>
 
