@@ -19,6 +19,10 @@ import MemoryChallenge from '@/components/game/minigames/MemoryChallenge';
 import ReflexDuel from '@/components/game/minigames/ReflexDuel';
 import StopTheBus from '@/components/game/minigames/StopTheBus';
 import GiftBox from '@/components/game/minigames/GiftBox';
+import HighLow from '@/components/game/minigames/HighLow';
+import HotPotato from '@/components/game/minigames/HotPotato';
+import PrecisionSniper from '@/components/game/minigames/PrecisionSniper';
+import WireCut from '@/components/game/minigames/WireCut';
 
 // Fisher-Yates Shuffle Algorithm
 const shuffleArray = (array: Card[]) => {
@@ -97,6 +101,10 @@ export default function GameScreen() {
     const [showMemoryChallenge, setShowMemoryChallenge] = useState(false);
     const [showReflexDuel, setShowReflexDuel] = useState(false);
     const [showStopTheBus, setShowStopTheBus] = useState(false);
+    const [showHighLow, setShowHighLow] = useState(false);
+    const [showHotPotato, setShowHotPotato] = useState(false);
+    const [showPrecisionSniper, setShowPrecisionSniper] = useState(false);
+    const [showWireCut, setShowWireCut] = useState(false);
     const [showGiftBox, setShowGiftBox] = useState(false);
     const [isArcadeMode, setIsArcadeMode] = useState(true);
     const [isMinigameOnlyMode, setIsMinigameOnlyMode] = useState(false);
@@ -461,6 +469,10 @@ export default function GameScreen() {
             { key: 'reflex', name: 'Duelo de Reflejos ⚡', description: 'Sé el primero en reaccionar.', icon: 'bolt', action: () => setShowReflexDuel(true) },
             { key: 'stop', name: 'Stop the Bus 🚌', description: 'Para el cronómetro en el momento justo.', icon: 'clock-o', action: () => setShowStopTheBus(true) },
             { key: 'gift', name: 'Gift Box 🎁', description: 'Elige una caja y tienta a la suerte.', icon: 'gift', action: () => setShowGiftBox(true) },
+            { key: 'highlow', name: 'Mayor o Menor 🃏', description: 'Adivina si la siguiente carta es mayor o menor.', icon: 'arrows-v', action: () => setShowHighLow(true) },
+            { key: 'potato', name: 'La Bomba 💣', description: 'Pásalo rápido antes de que explote.', icon: 'bomb', action: () => setShowHotPotato(true) },
+            { key: 'sniper', name: 'Francotirador 🎯', description: 'Para el tiempo EXACTAMENTE en el objetivo.', icon: 'crosshairs', action: () => setShowPrecisionSniper(true) },
+            { key: 'wire', name: 'Corta Cables ✂️', description: 'Elige el cable correcto... si te atreves.', icon: 'scissors', action: () => setShowWireCut(true) },
         ];
 
         const selected = minigames[Math.floor(Math.random() * minigames.length)];
@@ -539,6 +551,10 @@ export default function GameScreen() {
         if (effect === 'minigame_reflex') { setTimeout(() => setShowReflexDuel(true), 500); return; }
         if (effect === 'minigame_stop') { setTimeout(() => setShowStopTheBus(true), 500); return; }
         if (effect === 'minigame_box') { setTimeout(() => setShowGiftBox(true), 500); return; }
+        if (effect === 'minigame_highlow') { setTimeout(() => setShowHighLow(true), 500); return; }
+        if (effect === 'minigame_potato') { setTimeout(() => setShowHotPotato(true), 500); return; }
+        if (effect === 'minigame_sniper') { setTimeout(() => setShowPrecisionSniper(true), 500); return; }
+        if (effect === 'minigame_wire') { setTimeout(() => setShowWireCut(true), 500); return; }
 
         // Arcade Mode Random Exception
         // Arcade Mode Random Exception
@@ -1574,11 +1590,12 @@ export default function GameScreen() {
                     if (success) {
                         playHaptic('heavy');
                         addPoints(players[currentPlayerIndex], 0); // Safe -> 0
+                        nextTurn();
                     } else {
                         handleDrink('¡HAS PERDIDO!\n(3 Tragos)');
                         addPoints(players[currentPlayerIndex], 3); // Lose -> 3 Drinks -> 3 Points
+                        // handleDrink opens modal which calls nextTurn on close
                     }
-                    nextTurn();
                 }}
                 colors={colors}
             />
@@ -1589,11 +1606,11 @@ export default function GameScreen() {
                     setShowFlappyDrink(false);
                     if (success) {
                         addPoints(players[currentPlayerIndex], 0);
+                        nextTurn();
                     } else {
                         handleDrink('¡HAS CHOCADO!\n(3 Tragos)');
                         addPoints(players[currentPlayerIndex], 3);
                     }
-                    nextTurn();
                 }}
                 colors={colors}
             />
@@ -1610,11 +1627,11 @@ export default function GameScreen() {
                     setShowFastTapper(false);
                     if (success) {
                         addPoints(players[currentPlayerIndex], 0);
+                        nextTurn();
                     } else {
                         handleDrink('¡MUY LENTO!\n(3 Tragos)');
                         addPoints(players[currentPlayerIndex], 3);
                     }
-                    nextTurn();
                 }}
                 colors={colors}
             />
@@ -1625,11 +1642,11 @@ export default function GameScreen() {
                     setShowMemoryChallenge(false);
                     if (success) {
                         addPoints(players[currentPlayerIndex], 0);
+                        nextTurn();
                     } else {
                         handleDrink('¡MEMORIA DE PEZ!\n(3 Tragos)');
                         addPoints(players[currentPlayerIndex], 3);
                     }
-                    nextTurn();
                 }}
                 colors={colors}
             />
@@ -1640,11 +1657,11 @@ export default function GameScreen() {
                     setShowReflexDuel(false);
                     if (success) {
                         addPoints(players[currentPlayerIndex], 0);
+                        nextTurn();
                     } else {
                         handleDrink('¡BANG! ESTÁS MUERTO.\n(3 Tragos)');
                         addPoints(players[currentPlayerIndex], 3);
                     }
-                    nextTurn();
                 }}
                 colors={colors}
             />
@@ -1655,11 +1672,11 @@ export default function GameScreen() {
                     setShowStopTheBus(false);
                     if (success) {
                         addPoints(players[currentPlayerIndex], 0);
+                        nextTurn();
                     } else {
                         handleDrink('¡TE HAS PASADO!\n(3 Tragos)');
                         addPoints(players[currentPlayerIndex], 3);
                     }
-                    nextTurn();
                 }}
                 colors={colors}
             />
@@ -1669,12 +1686,71 @@ export default function GameScreen() {
                 onClose={(success) => {
                     setShowGiftBox(false);
                     if (success) {
-                        addPoints(players[currentPlayerIndex], 0);
+                        addPoints(players[currentPlayerIndex], 0); // Gift gives points via handleGift usually? Wait, checking logic.
+                        // Standardize: If success=true (no drink), go next.
+                        nextTurn();
                     } else {
                         handleDrink('¡BOMBAZO!\n(3 Tragos)');
                         addPoints(players[currentPlayerIndex], 3);
                     }
+                }}
+                colors={colors}
+            />
+
+            <HighLow
+                visible={showHighLow}
+                onClose={(success) => {
+                    setShowHighLow(false);
+                    if (success) {
+                        addPoints(players[currentPlayerIndex], 0);
+                        nextTurn();
+                    } else {
+                        handleDrink('¡NO ERES ADIVINA!\n(3 Tragos)');
+                        addPoints(players[currentPlayerIndex], 3);
+                    }
+                }}
+                colors={colors}
+            />
+
+            <HotPotato
+                visible={showHotPotato}
+                onClose={(success) => {
+                    setShowHotPotato(false);
+                    // Hot Potato has internal winner or assumed bomb.
+                    // If success=true, just next.
+                    // If fail, drink logic? 
+                    // HotPotato Component onClose(true) implies done.
                     nextTurn();
+                }}
+                colors={colors}
+            />
+
+            <PrecisionSniper
+                visible={showPrecisionSniper}
+                onClose={(success) => {
+                    setShowPrecisionSniper(false);
+                    if (success) {
+                        addPoints(players[currentPlayerIndex], 0);
+                        nextTurn();
+                    } else {
+                        handleDrink('¡QUÉ MALA PUNTERÍA!\n(3 Tragos)');
+                        addPoints(players[currentPlayerIndex], 3);
+                    }
+                }}
+                colors={colors}
+            />
+
+            <WireCut
+                visible={showWireCut}
+                onClose={(success) => {
+                    setShowWireCut(false);
+                    if (success) {
+                        addPoints(players[currentPlayerIndex], 0);
+                        nextTurn();
+                    } else {
+                        handleDrink('¡BOOM!\n(3 Tragos)');
+                        addPoints(players[currentPlayerIndex], 3);
+                    }
                 }}
                 colors={colors}
             />
