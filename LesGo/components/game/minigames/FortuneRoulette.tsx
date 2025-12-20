@@ -6,26 +6,33 @@ import Animated, {
     useAnimatedStyle,
     withTiming,
     runOnJS,
-    withDecay,
-    cancelAnimation,
-    useDerivedValue,
-    Easing
+    Easing,
+    useDerivedValue
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
 const { width } = Dimensions.get('window');
-const WHEEL_SIZE = width * 0.85;
+// Increase wheel size slightly for better visibility
+const WHEEL_SIZE = width * 0.9;
+const RADIUS = WHEEL_SIZE / 2;
 
-// Defined outcomes based on user request: +4, -4, Reto, Acción, Robar
+// Trigonometry for 8 segments (45 degrees each)
+// tan(22.5) = BaseHalf / Height
+// Height = RADIUS
+const TAN_22_5 = Math.tan(22.5 * Math.PI / 180); // ~0.4142
+const HALF_BASE = RADIUS * TAN_22_5;
+// Add slight overlap (2px) to prevent gaps
+const TRIANGLE_HALF_BASE = HALF_BASE + 2;
+
 const SEGMENTS = [
-    { label: '+4 PTS', color: '#4CD964', type: 'points', value: 4, icon: 'plus' },
-    { label: 'RETO', color: '#FF9500', type: 'challenge', value: 0, icon: 'bolt' },
-    { label: '-4 PTS', color: '#FF3B30', type: 'points', value: -4, icon: 'minus' },
-    { label: 'ROBAR', color: '#9B59B6', type: 'steal', value: 0, icon: 'hand-lizard-o' },
-    { label: 'ACCIÓN', color: '#3498DB', type: 'action', value: 0, icon: 'group' },
-    { label: '+4 PTS', color: '#4CD964', type: 'points', value: 4, icon: 'plus' },
-    { label: 'SHOT', color: '#000000', type: 'drink', value: 0, icon: 'glass' },
-    { label: 'ROBAR', color: '#9B59B6', type: 'steal', value: 0, icon: 'hand-lizard-o' },
+    { label: '+4', sub: 'PTS', color: '#4CD964', type: 'points', value: 4, icon: 'plus' },
+    { label: 'RETO', sub: '', color: '#FF9500', type: 'challenge', value: 0, icon: 'bolt' },
+    { label: '-4', sub: 'PTS', color: '#FF3B30', type: 'points', value: -4, icon: 'minus' },
+    { label: 'ROBAR', sub: '', color: '#9B59B6', type: 'steal', value: 0, icon: 'hand-lizard-o' },
+    { label: 'ACCIÓN', sub: '', color: '#3498DB', type: 'action', value: 0, icon: 'group' },
+    { label: '+4', sub: 'PTS', color: '#4CD964', type: 'points', value: 4, icon: 'plus' },
+    { label: 'SHOT', sub: '', color: '#000000', type: 'drink', value: 1, icon: 'glass' },
+    { label: 'ROBAR', sub: '', color: '#9B59B6', type: 'steal', value: 0, icon: 'hand-lizard-o' },
 ];
 
 const SEGMENT_ANGLE = 360 / SEGMENTS.length;
@@ -39,12 +46,18 @@ interface FortuneRouletteProps {
 export default function FortuneRoulette({ visible, onClose, colors }: FortuneRouletteProps) {
     const [spinning, setSpinning] = useState(false);
     const [result, setResult] = useState<any>(null);
-
-    // Rotation value (0 -> 360 -> ...)
     const rotation = useSharedValue(0);
-
-    // Track last haptic trigger to avoid spamming
     const lastHapticAngle = useRef(0);
+
+    // Reset on appear
+    useEffect(() => {
+        if (visible) {
+            setSpinning(false);
+            setResult(null);
+            rotation.value = 0;
+            lastHapticAngle.current = 0;
+        }
+    }, [visible]);
 
     const animatedStyle = useAnimatedStyle(() => {
         return {
@@ -52,12 +65,10 @@ export default function FortuneRoulette({ visible, onClose, colors }: FortuneRou
         };
     });
 
-    // Haptics logic via derived value (runs on UI thread, needs careful handling)
     useDerivedValue(() => {
         const currentAngle = rotation.value % 360;
         const diff = Math.abs(currentAngle - lastHapticAngle.current);
-
-        // Trigger haptic every segment pass (approx)
+        // Trigger haptic every time we cross a segment boundary approx
         if (diff > SEGMENT_ANGLE) {
             runOnJS(triggerHaptic)();
             lastHapticAngle.current = currentAngle;
@@ -69,11 +80,13 @@ export default function FortuneRoulette({ visible, onClose, colors }: FortuneRou
     }
 
     const spin = () => {
-        if (spinning) return;
+        if (spinning || result) return;
         setSpinning(true);
         setResult(null);
 
-        // Random rotations (min 5 full spins + random offset)
+        // Spin Logic:
+        // Min 5 full rotations (1800 deg)
+        // Add random offset (0-360)
         const randomOffset = Math.random() * 360;
         const spins = 360 * 5;
         const finalValue = rotation.value + spins + randomOffset;
@@ -89,23 +102,25 @@ export default function FortuneRoulette({ visible, onClose, colors }: FortuneRou
     };
 
     const handleFinish = (finalRotation: number) => {
-        // Normalize angle to 0-360
-        // Important: Visual rotation encompasses the whole wheel.
-        // We have a pointer at the TOP (0 degrees usually, or 270?).
-        // Let's assume pointer is at TOP (12 o'clock).
-        // If we rotate the wheel clockwise, the segments move counter-clockwise relative to the pointer.
+        // Logic to determine winner:
+        // Pointer is fixed at TOP (0 deg / 12 o'clock).
+        // If wheel rotates clockwise, the segment index 0 (at 12 oclock initially) moves RIGHT.
+        // We find the angle relative to the top.
+        const normalized = finalRotation % 360;
+        // The angle "under" the pointer is 360 - normalized rotation.
+        const pointerAngle = (360 - normalized) % 360;
 
-        const normalizedAngle = finalRotation % 360;
-
-        // Calculate which segment is at the top (0 degrees)
-        // Since 0 is usually 3 o'clock in trig, but in styles '0deg' is 12 up? No, 0deg is usually upright with no rotation.
-        // If we have 8 segments, segment 0 is from -22.5 to +22.5?
-        // Let's assume standard CSS drawing: 0 is top center.
-        // Effective angle under pointer = (360 - normalizedRotation) % 360
-        const effectiveAngle = (360 - normalizedAngle) % 360;
-
+        // Segments are centered: Segment 0 at 0deg +/- 22.5deg.
+        // So we shift angle by +22.5 to map 0deg to index 0 cleanly?
+        // Let's visualize: 
+        // 0 deg -> Index 0.
+        // 45 deg -> Index 1.
+        // Range for Index 0 is [337.5, 360] U [0, 22.5].
+        // (pointerAngle + 22.5) % 360 / 45 -> floor -> index.
+        const effectiveAngle = (pointerAngle + (SEGMENT_ANGLE / 2)) % 360;
         const segmentIndex = Math.floor(effectiveAngle / SEGMENT_ANGLE);
-        const winningSegment = SEGMENTS[segmentIndex];
+
+        const winningSegment = SEGMENTS[segmentIndex % SEGMENTS.length];
 
         setResult(winningSegment);
         setSpinning(false);
@@ -115,68 +130,68 @@ export default function FortuneRoulette({ visible, onClose, colors }: FortuneRou
     if (!visible) return null;
 
     return (
-        <View style={StyleSheet.absoluteFill}>
-            <View style={styles.overlay}>
-                <View style={[styles.container, { backgroundColor: colors.modalBackground }]}>
-                    <Text style={[styles.title, { color: colors.text }]}>¡RULETA DE LA SUERTE!</Text>
+        <View style={styles.overlay}>
+            <View style={[styles.container, { backgroundColor: colors.modalBackground }]}>
+                <Text style={[styles.title, { color: colors.text }]}>¡RULETA DE LA SUERTE!</Text>
 
-                    {/* WHEEL CONTAINER */}
-                    <View style={styles.wheelContainer}>
-                        {/* POINTER */}
+                <View style={styles.wheelContainer}>
+                    {/* POINTER */}
+                    <View style={styles.pointerContainer}>
                         <View style={styles.pointer} />
-
-                        {/* WHEEL */}
-                        <Animated.View style={[styles.wheel, animatedStyle]}>
-                            {SEGMENTS.map((seg, index) => {
-                                const angle = index * SEGMENT_ANGLE;
-                                return (
-                                    <View
-                                        key={index}
-                                        style={[
-                                            styles.segment,
-                                            {
-                                                transform: [
-                                                    { rotate: `${angle}deg` },
-                                                    { translateY: -WHEEL_SIZE / 4 }
-                                                ]
-                                            }
-                                        ]}
-                                    >
-                                        <View style={[styles.segmentInner, { backgroundColor: seg.color }]}>
-                                            <Text style={styles.segmentText}>{seg.label}</Text>
-                                        </View>
-                                    </View>
-                                );
-                            })}
-                        </Animated.View>
-
-                        {/* CENTER HUB */}
-                        <TouchableOpacity
-                            style={styles.centerHub}
-                            onPress={spin}
-                            activeOpacity={0.9}
-                        >
-                            <Text style={styles.spinText}>{spinning ? '...' : 'GIRAR'}</Text>
-                        </TouchableOpacity>
                     </View>
 
-                    {/* RESULT MODAL OVERLAY */}
-                    {result && (
-                        <View style={styles.resultOverlay}>
-                            <Text style={styles.resultTitle}>¡TE HA TOCADO!</Text>
-                            <View style={[styles.resultBadge, { backgroundColor: result.color }]}>
-                                <FontAwesome name={result.icon as any} size={40} color="white" />
-                                <Text style={styles.resultValue}>{result.label}</Text>
-                            </View>
-                            <TouchableOpacity
-                                style={[styles.button, { backgroundColor: colors.purple }]}
-                                onPress={() => onClose(result)}
-                            >
-                                <Text style={styles.buttonText}>ACEPTAR</Text>
-                            </TouchableOpacity>
-                        </View>
-                    )}
+                    {/* WHEEL */}
+                    <Animated.View style={[styles.wheel, animatedStyle]}>
+                        {SEGMENTS.map((seg, index) => {
+                            const rotate = index * SEGMENT_ANGLE;
+                            return (
+                                <View
+                                    key={index}
+                                    style={[
+                                        styles.segmentContainer, // Full size container
+                                        { transform: [{ rotate: `${rotate}deg` }] }
+                                    ]}
+                                >
+                                    {/* The Triangle Wedge */}
+                                    <View style={[styles.wedge, { borderTopColor: seg.color }]} />
+
+                                    {/* Content inside wedge */}
+                                    <View style={styles.contentContainer}>
+                                        <Text style={styles.segmentText}>{seg.label}</Text>
+                                        {seg.sub ? <Text style={styles.segmentSub}>{seg.sub}</Text> : null}
+                                        <FontAwesome name={seg.icon as any} size={16} color="rgba(255,255,255,0.8)" style={{ marginTop: 5 }} />
+                                    </View>
+                                </View>
+                            );
+                        })}
+                    </Animated.View>
+
+                    {/* SPINNER BUTTON */}
+                    <TouchableOpacity
+                        style={styles.centerButton}
+                        activeOpacity={0.9}
+                        onPress={spin}
+                    >
+                        <Text style={styles.spinText}>{spinning ? '...' : 'GIRAR'}</Text>
+                    </TouchableOpacity>
                 </View>
+
+                {/* RESULT MODAL */}
+                {result && (
+                    <View style={styles.resultOverlay}>
+                        <Text style={styles.resultTitle}>¡TE HA TOCADO!</Text>
+                        <View style={[styles.resultBadge, { backgroundColor: result.color }]}>
+                            <FontAwesome name={result.icon as any} size={50} color="white" />
+                            <Text style={styles.resultValue}>{result.label} {result.sub}</Text>
+                        </View>
+                        <TouchableOpacity
+                            style={[styles.button, { backgroundColor: colors.purple }]}
+                            onPress={() => onClose(result)}
+                        >
+                            <Text style={styles.buttonText}>ACEPTAR</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
             </View>
         </View>
     );
@@ -184,107 +199,139 @@ export default function FortuneRoulette({ visible, onClose, colors }: FortuneRou
 
 const styles = StyleSheet.create({
     overlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.9)',
+        position: 'absolute',
+        top: 0, left: 0, right: 0, bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.8)',
         justifyContent: 'center',
         alignItems: 'center',
+        zIndex: 2000
     },
     container: {
         width: '95%',
         padding: 20,
         borderRadius: 20,
         alignItems: 'center',
-        minHeight: 500
+        minHeight: 500,
+        overflow: 'hidden' // Clip content if needed
     },
     title: {
-        fontSize: 22,
+        fontSize: 24,
         fontWeight: 'bold',
-        marginBottom: 30,
-        textAlign: 'center'
+        marginBottom: 20,
+        textAlign: 'center',
+        letterSpacing: 1
     },
     wheelContainer: {
         width: WHEEL_SIZE,
         height: WHEEL_SIZE,
         justifyContent: 'center',
         alignItems: 'center',
-        position: 'relative'
+        position: 'relative',
+        marginBottom: 20
     },
     wheel: {
         width: '100%',
         height: '100%',
-        borderRadius: WHEEL_SIZE / 2,
+        borderRadius: RADIUS,
         borderWidth: 5,
-        borderColor: 'white',
-        overflow: 'hidden',
+        borderColor: '#fff',
+        backgroundColor: '#222', // Behind wedges
         position: 'relative',
-        backgroundColor: '#333' // Base color
+        overflow: 'hidden', // Clip the triangles to circle
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 5
     },
-    segment: {
+    // The "Wedge" using border trick
+    // Points DOWN (borderTopColor used)
+    // Placed at Top Center of segment container
+    wedge: {
+        width: 0,
+        height: 0,
+        backgroundColor: 'transparent',
+        borderStyle: 'solid',
+        borderLeftWidth: TRIANGLE_HALF_BASE,
+        borderRightWidth: TRIANGLE_HALF_BASE,
+        borderTopWidth: RADIUS, // Height of wedge
+        borderLeftColor: 'transparent',
+        borderRightColor: 'transparent',
+        // Top color set inline
         position: 'absolute',
-        top: '50%',
-        left: '50%',
-        width: 100,
-        height: WHEEL_SIZE / 2, // Radius
-        justifyContent: 'flex-start',
-        alignItems: 'center',
-        // Pivot point creation via precise margins is tricky in React Native without 'transform-origin'
-        // Alternative: Use a tall thin container rotated from center
-        marginLeft: -50, // Center horizontally
-        marginTop: 0,
-        transformOrigin: 'bottom center', // Note: verify RN support or use translateY method 
-        // Logic for segments:
-        // Actually, creating a pie chart in vanilla RN views is hard.
-        // Simplified approach: Render circles or just rotated rectangles acting as labels.
-        // For 'Fortune Roulette', a clean SVG is better, but Views work if we are clever.
-        // Let's try simple text labels rotated
+        top: 0,
+        left: (WHEEL_SIZE - (TRIANGLE_HALF_BASE * 2)) / 2, // Centered horizontally
     },
-    // Better Segment Approach for CSS/View:
-    // Create a container that is full size, rotate it. Place content at top.
-    segmentInner: {
-        width: 80,
-        height: 80,
-        justifyContent: 'center',
+    segmentContainer: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        // Allows rotation around center of wheel
+    },
+    contentContainer: {
+        position: 'absolute',
+        top: 40, // Distance from rim
+        left: 0,
+        right: 0,
         alignItems: 'center',
-        borderRadius: 40,
-        // Visual trickery: this is just the label bubble, not the wedge
+        zIndex: 10,
+        // Ensure text doesn't rotate locally if we didn't want it to, 
+        // but here we rotate container so text rotates with wedge. Looks natural.
     },
     segmentText: {
         color: 'white',
         fontWeight: 'bold',
-        fontSize: 12,
-        textAlign: 'center'
+        fontSize: 16,
+        textShadowColor: 'rgba(0,0,0,0.5)',
+        textShadowRadius: 2
     },
-    centerHub: {
+    segmentSub: {
+        color: 'white',
+        fontSize: 10,
+        fontWeight: '600',
+        opacity: 0.9
+    },
+    centerButton: {
         position: 'absolute',
-        width: 80,
-        height: 80,
-        borderRadius: 40,
+        width: 70,
+        height: 70,
+        borderRadius: 35,
         backgroundColor: 'white',
         justifyContent: 'center',
         alignItems: 'center',
         elevation: 10,
-        zIndex: 20,
+        zIndex: 50,
         borderWidth: 4,
         borderColor: '#ddd'
     },
     spinText: {
+        color: '#333',
         fontWeight: 'bold',
-        fontSize: 16
+        fontSize: 14
+    },
+    pointerContainer: {
+        position: 'absolute',
+        top: -15,
+        zIndex: 60,
+        elevation: 10
     },
     pointer: {
-        position: 'absolute',
-        top: -20,
         width: 0,
         height: 0,
         backgroundColor: 'transparent',
         borderStyle: 'solid',
         borderLeftWidth: 15,
         borderRightWidth: 15,
-        borderBottomWidth: 30,
+        borderTopWidth: 25, // Points DOWN
         borderLeftColor: 'transparent',
         borderRightColor: 'transparent',
-        borderBottomColor: '#FFD700', // Gold pointer
-        zIndex: 50
+        borderTopColor: '#FFD700', // Gold
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.5,
+        shadowRadius: 2
     },
     resultOverlay: {
         position: 'absolute',
@@ -307,13 +354,14 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         alignItems: 'center',
         marginBottom: 30,
-        width: 200
+        width: 250,
+        elevation: 5
     },
     resultValue: {
         color: 'white',
-        fontSize: 28,
+        fontSize: 24,
         fontWeight: 'bold',
-        marginTop: 10,
+        marginTop: 15,
         textAlign: 'center'
     },
     button: {
