@@ -73,7 +73,7 @@ export default function GameScreen() {
 
     // Player selection modal for steal/gift effects
     const [playerSelectionModal, setPlayerSelectionModal] = useState(false);
-    const [selectionAction, setSelectionAction] = useState<'steal' | 'gift' | null>(null);
+    const [selectionAction, setSelectionAction] = useState<'steal' | 'gift' | 'roulette_steal' | null>(null);
     const [winner, setWinner] = useState<string | null>(null);
     const [showExitConfirm, setShowExitConfirm] = useState(false);
     const [currentRound, setCurrentRound] = useState(1);
@@ -98,7 +98,7 @@ export default function GameScreen() {
     const [showReflexDuel, setShowReflexDuel] = useState(false);
     const [showStopTheBus, setShowStopTheBus] = useState(false);
     const [showGiftBox, setShowGiftBox] = useState(false);
-    const [isArcadeMode, setIsArcadeMode] = useState(false);
+    const [isArcadeMode, setIsArcadeMode] = useState(true);
     const [isMinigameOnlyMode, setIsMinigameOnlyMode] = useState(false);
 
 
@@ -124,7 +124,7 @@ export default function GameScreen() {
 
     // Game configuration
     const [selectedCategories, setSelectedCategories] = useState<string[]>(['romantic', 'spicy', 'fun', 'general']);
-    const [selectedIntensity, setSelectedIntensity] = useState<'soft' | 'medium' | 'spicy'>('medium');
+    const [selectedIntensity, setSelectedIntensity] = useState<'soft' | 'medium' | 'spicy'>('spicy');
 
     // Custom cards
     const [customCards, setCustomCards] = useState<Card[]>([]);
@@ -414,26 +414,27 @@ export default function GameScreen() {
             // Show toast or modal? TimerModal used for general info sometimes
             // For now, let's just rely on the Roulette's own result modal which the user already saw.
         } else if (result.type === 'steal') {
-            // Steal 5 points from top player (excluding self)
-            let topPlayer = '';
-            let maxScore = -1;
-
-            Object.entries(playerScores).forEach(([p, score]) => {
-                if (p !== currentPlayer && score > maxScore) {
-                    maxScore = score;
-                    topPlayer = p;
-                }
-            });
-
-            if (topPlayer && maxScore > 0) {
-                const stealAmount = Math.min(maxScore, 5);
-                setPlayerScores(prev => ({
-                    ...prev,
-                    [topPlayer]: prev[topPlayer] - stealAmount,
-                    [currentPlayer]: (prev[currentPlayer] || 0) + stealAmount
-                }));
-            }
+            // Steal 5 points (Manual Selection)
+            setSelectionAction('roulette_steal');
+            setPlayerSelectionModal(true);
+            return; // Wait for selection
+        } else if (result.type === 'drink') {
+            // Drink -> +Points
+            const points = result.value || 1;
+            setPlayerScores(prev => ({
+                ...prev,
+                [currentPlayer]: (prev[currentPlayer] || 0) + points
+            }));
+        } else if (result.type === 'points') {
+            // +/- Points
+            const points = result.value;
+            setPlayerScores(prev => ({
+                ...prev,
+                [currentPlayer]: Math.max(0, (prev[currentPlayer] || 0) + points)
+            }));
         }
+        // Action/Challenge -> Just continue
+
         // 'drink' and 'challenge' are self-explanatory actions shown on the wheel results
 
         // Advance Turn
@@ -662,6 +663,17 @@ export default function GameScreen() {
                 const actualSteal = Math.max(0, Math.min(victimScore, 10));
 
                 newScores[selectedPlayer] = victimScore - actualSteal; // Will be >= 0
+                newScores[currentPlayer] = (newScores[currentPlayer] || 0) + actualSteal;
+                return newScores;
+            });
+        } else if (selectionAction === 'roulette_steal') {
+            // Specific Roulette Steal (5 Points)
+            setPlayerScores(prev => {
+                const newScores = { ...prev };
+                const victimScore = newScores[selectedPlayer] || 0;
+                const actualSteal = Math.max(0, Math.min(victimScore, 5));
+
+                newScores[selectedPlayer] = victimScore - actualSteal;
                 newScores[currentPlayer] = (newScores[currentPlayer] || 0) + actualSteal;
                 return newScores;
             });
@@ -1277,46 +1289,23 @@ export default function GameScreen() {
                 // 1. Minigame Active (Playing) -> HIDE HEADER (Prevents overlap with game canvas)
                 (showBrickBreaker || showFlappyDrink || showFortuneRoulette || showFastTapper || showMemoryChallenge || showReflexDuel || showStopTheBus || showGiftBox || showRoulette) ? (
                     null
-                ) :
-                    // 2. Pending Minigame (Intro Card) -> LARGE HEADER (Turn + Ranking Centered)
-                    pendingMinigame ? (
-                        <View style={{ width: '100%', alignItems: 'center', marginBottom: 20, zIndex: 100, elevation: 20 }}>
-                            {/* Centered Ranking Button */}
-                            <TouchableOpacity
-                                onPress={() => setShowScoreboard(true)}
-                                style={[styles.viewAllButton, { backgroundColor: colors.purple, alignSelf: 'center', paddingHorizontal: 20, marginBottom: 15 }]}
-                            >
-                                <FontAwesome name="list" size={16} color={colors.white} />
-                                <Text style={{ color: colors.white, marginLeft: 8, fontSize: 16, fontWeight: 'bold' }}>
-                                    Ver Ranking
-                                </Text>
-                            </TouchableOpacity>
-
-                            {/* Large Turn Title */}
-                            <Text style={{ fontSize: 18, color: colors.text, opacity: 0.8, marginBottom: 5 }}>Turno de:</Text>
-                            <Text style={{ fontSize: 36, fontWeight: 'bold', color: colors.darkPink, marginBottom: 5 }}>
-                                {players[currentPlayerIndex]}
-                            </Text>
-                        </View>
-                    ) : (
-                        // 3. Standard Card Mode -> STANDARD HEADER (Small)
-                        // 3. Standard Card Mode -> NEW LARGE HEADER
-                        // 3. Standard Card Mode -> NEW LARGE HEADER (Name Only)
-                        <View style={{ width: '100%', alignItems: 'center', marginBottom: 30 }}>
-                            <Text style={{ fontSize: 16, color: colors.text, opacity: 0.6, marginBottom: 10, letterSpacing: 2 }}>
-                                TURNO DE
-                            </Text>
-                            <Text style={{
-                                fontSize: 42,
-                                fontWeight: '900',
-                                color: colors.text,
-                                textAlign: 'center',
-                                lineHeight: 50 // Better for long names
-                            }}>
-                                {players[currentPlayerIndex]}
-                            </Text>
-                        </View>
-                    )}
+                ) : (
+                    // 3. Standard Card Mode -> NEW LARGE HEADER (Name Only) - Applies to Minigame Intro too
+                    <View style={{ width: '100%', alignItems: 'center', marginBottom: 30 }}>
+                        <Text style={{ fontSize: 16, color: colors.text, opacity: 0.6, marginBottom: 10, letterSpacing: 2 }}>
+                            TURNO DE
+                        </Text>
+                        <Text style={{
+                            fontSize: 42,
+                            fontWeight: '900',
+                            color: colors.text,
+                            textAlign: 'center',
+                            lineHeight: 50 // Better for long names
+                        }}>
+                            {players[currentPlayerIndex]}
+                        </Text>
+                    </View>
+                )}
 
             {pendingMinigame ? (
                 // Minigame Intro Card
@@ -1335,13 +1324,8 @@ export default function GameScreen() {
                         shadowOpacity: 0.25,
                         shadowRadius: 3.84,
                     }}>
-                        {/* Identify WHO plays the minigame */}
-                        <Text style={{ fontSize: 16, color: colors.text, opacity: 0.6, marginBottom: 5 }}>
-                            TURNO DE:
-                        </Text>
-                        <Text style={{ fontSize: 32, fontWeight: 'bold', color: colors.darkPink, marginBottom: 20 }}>
-                            {players[currentPlayerIndex]}
-                        </Text>
+
+                        {/* Internal Header Removed as it is now duplicated in main header */}
 
                         <FontAwesome name={pendingMinigame.icon as any} size={80} color={colors.purple} style={{ marginBottom: 30 }} />
                         <Text style={{ fontSize: 28, fontWeight: 'bold', color: colors.text, marginBottom: 15, textAlign: 'center' }}>

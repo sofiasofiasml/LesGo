@@ -16,6 +16,7 @@ export interface Card {
 // Medium = 2 points
 // Spicy = 3 points
 // Challenges = +1 bonus (2, 3, 4)
+// Steal/Reverse/Skip = 2-3 points usually
 
 export const GAME_CARDS: Card[] = [
     // ========================================================================
@@ -135,7 +136,7 @@ export const GAME_CARDS: Card[] = [
         type: 'question',
         mode: 'binary',
         drinkTrigger: 'yes',
-        drinkAction: 'Bebe, U-Haul Lesbian',
+        drinkAction: 'Bebe, por lesbiana intensa',
         category: 'romantic',
         intensity: 'medium',
         points: 2
@@ -406,7 +407,7 @@ export const GAME_CARDS: Card[] = [
     },
     {
         id: 'g7',
-        text: 'Haz un brindis por "las que ya no están" (tus ex). Todas beben.',
+        text: 'Teléfono roto: inventa una palabra. Si llega al final, nadie bebe; si no, todas 1 trago.',
         type: 'viral',
         mode: 'statement',
         drinkTrigger: 'always',
@@ -1240,5 +1241,1093 @@ export const GAME_CARDS: Card[] = [
         category: 'spicy',
         intensity: 'spicy',
         specialEffect: 'minigame_box'
+    },
+    {
+        id: 'n36',
+        text: '¡LADRONA! 🕵️‍♀️ Elige a una jugadora y róbale puntos.',
+        type: 'rule',
+        mode: 'rule',
+        drinkTrigger: 'none',
+        category: 'general',
+        intensity: 'medium',
+        specialEffect: 'steal',
+        points: 0
+    },
+    {
+        id: 'n37',
+        text: '🔃 CAMBIO DE SENTIDO. El orden de los turnos se invierte.',
+        type: 'rule',
+        mode: 'rule',
+        drinkTrigger: 'none',
+        category: 'general',
+        intensity: 'soft',
+        specialEffect: 'reverse',
+        points: 0
+    },
+    {
+        id: 'n38',
+        text: '🚫 SALTO DE TURNO. La siguiente persona se libra (o se fastidia).',
+        type: 'rule',
+        mode: 'rule',
+        drinkTrigger: 'none',
+        category: 'general',
+        intensity: 'soft',
+        specialEffect: 'skip',
+        points: 0
+    },
+    {
+        id: 'n39',
+        text: '💸 IMPUESTOS. Robas puntos a la persona que va ganando (si no eres tú).',
+        type: 'rule',
+        mode: 'rule',
+        drinkTrigger: 'none',
+        category: 'general',
+        intensity: 'spicy',
+        specialEffect: 'steal',
+        points: 0
+    },
+    {
+        id: 'n40',
+        text: '¡UNO REVERSE! 🔄 El juego cambia de dirección.',
+        type: 'rule',
+        mode: 'rule',
+        drinkTrigger: 'none',
+        category: 'general',
+        intensity: 'soft',
+        specialEffect: 'reverse',
+        points: 0
+    },
+    // NEW SPICY
+    {
+        id: 'ns1',
+        text: 'Bebe si alguna vez has tenido química brutal con alguien… y nunca pasó nada.',
+        type: 'viral',
+        mode: 'statement',
+        drinkTrigger: 'always',
+        category: 'spicy',
+        intensity: 'medium',
+        points: 2
+    },
+    {
+        id: 'ns2',
+        text: 'Elige a alguien del grupo. Dile algo que te parezca sexy de ella o bebe 2 tragos.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'medium',
+        points: 3
+    },
+    {
+        id: 'ns3',
+        text: '¿Alguna vez te has enganchado más de la cuenta a alguien que solo quería algo casual?',
+        type: 'question',
+        mode: 'binary',
+        drinkTrigger: 'yes',
+        drinkAction: 'Bebe por intensa',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 3
+    },
+    {
+        id: 'ns4',
+        text: 'Susurra al grupo tu red flag más grande. Si no quieres decirla, bebe 3.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 4
+    },
+    // NEW ROMANTIC
+    {
+        id: 'nr1',
+        text: 'Bebe si alguna vez te ilusionaste demasiado rápido.',
+        type: 'viral',
+        mode: 'statement',
+        drinkTrigger: 'always',
+        category: 'romantic',
+        intensity: 'soft',
+        points: 1
+    },
+    {
+        id: 'nr2',
+        text: 'Di algo bonito de la persona de tu izquierda. Si no te sale nada, bebes.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'romantic',
+        intensity: 'soft',
+        points: 2
+    },
+    {
+        id: 'nr3',
+        text: '¿Alguna vez has pensado “esta podría ser” en una primera cita?',
+        type: 'question',
+        mode: 'binary',
+        drinkTrigger: 'yes',
+        category: 'romantic',
+        intensity: 'medium',
+        points: 2
+    },
+    {
+        id: 'nr4',
+        text: 'Bebe si sigues teniendo una foto vieja que no deberías borrar.',
+        type: 'viral',
+        mode: 'statement',
+        drinkTrigger: 'always',
+        category: 'romantic',
+        intensity: 'medium',
+        points: 2
+    },
+    // NEW FUN
+    {
+        id: 'nf1',
+        text: 'Ronda rápida: di una manía rara que tengas. La más absurda reparte 2 tragos.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'soft',
+        specialEffect: 'gift',
+        points: 2
+    },
+    {
+        id: 'nf2',
+        text: 'Bebe si alguna vez has fingido que te gustaba una canción solo para ligar.',
+        type: 'viral',
+        mode: 'statement',
+        drinkTrigger: 'always',
+        category: 'fun',
+        intensity: 'soft',
+        points: 1
+    },
+    {
+        id: 'nf3',
+        text: 'Imita cómo reaccionas cuando te dicen “tenemos que hablar”.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'medium',
+        points: 3
+    },
+    // NEW GENERAL
+    {
+        id: 'ng1',
+        text: 'Elige una palabra prohibida hasta tu próximo turno. Quien la diga, bebe.',
+        type: 'rule',
+        mode: 'rule',
+        drinkTrigger: 'none',
+        category: 'general',
+        intensity: 'medium',
+        points: 3
+    },
+    {
+        id: 'ng2',
+        text: 'La persona más sobria del grupo reparte 3 tragos. (Sí, lo sabemos).',
+        type: 'viral',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'general',
+        intensity: 'medium',
+        specialEffect: 'gift',
+        points: 2
+    },
+    {
+        id: 'ng3',
+        text: 'Todas votan quién sería la peor ex. La elegida bebe 2 tragos.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'general',
+        intensity: 'spicy',
+        points: 3
+    },
+    // NEW DYNAMIC & FUNNY EXTRA
+    {
+        id: 'df1',
+        text: 'Mímica: Tienes 10 segundos para imitar a un animal copulando. Si nadie lo adivina, bebes tú.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'spicy',
+        points: 3
+    },
+    {
+        id: 'df2',
+        text: '🎶 LA CAJA DE MÚSICA. Tararea una canción (sin letra). La primera que la adivine reparte 2 tragos. Si nadie acierta, bebes tú.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'medium',
+        points: 2
+    },
+    {
+        id: 'df3',
+        text: 'CONCURSO DE PIROPOS CRINGE 🤢. Di el piropo más asqueroso o cutre a la persona de tu derecha. Si se ríe, bebe.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'medium',
+        points: 2
+    },
+    {
+        id: 'df4',
+        text: 'Ronda de gemidos: Cada una debe hacer un gemido diferente. La que se ría o repita, bebe.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 3
+    },
+    {
+        id: 'df5',
+        text: 'NUEVA IDENTIDAD 🥸. Elige un nombre nuevo (ej. "La Patrona"). Quien no te llame así hasta tu próximo turno, bebe.',
+        type: 'rule',
+        mode: 'rule',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'medium',
+        points: 3
+    },
+    {
+        id: 'df6',
+        text: 'Debate serio: ¿La pizza con piña sí o no? La minoría bebe.',
+        type: 'viral',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'general',
+        intensity: 'soft',
+        points: 2
+    },
+    {
+        id: 'df7',
+        text: 'Si fueras un succionador de clítoris, ¿qué nombre de modelo tendrías? Dilo o bebe.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'medium',
+        points: 2
+    },
+    {
+        id: 'df8',
+        text: '🤡 PROHIBIDO REÍR. Tienes 30 segundos para hacer reír al grupo (chistes, caras...). Cada persona que se ría bebe. Si nadie se ríe, bebes tú doble.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'spicy',
+        points: 3
+    },
+    {
+        id: 'df9',
+        text: 'Coge el móvil de la persona de tu derecha y lee en voz alta su última nota o búsqueda de Google.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'general',
+        intensity: 'spicy',
+        points: 4
+    },
+    {
+        id: 'df10',
+        text: '🤖 MODO ROBOT. Debes hablar con tono monótono y sin emociones hasta tu próximo turno. Si fallas, shot.',
+        type: 'rule',
+        mode: 'rule',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'medium',
+        points: 3
+    },
+    {
+        id: 'df11',
+        text: 'YO NUNCA (DEDOS) 🖐️. Sacad 5 dedos. Di "Yo nunca...". Quien lo haya hecho baja un dedo. La primera en bajar todos bebe 3 tragos.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 3
+    },
+    {
+        id: 'df12',
+        text: '¿Quién es más probable que acabe en la cárcel? Señalad a la de 3. La elegida bebe.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'medium',
+        points: 2
+    },
+    // CREATIVE CHAOS BATCH (Unique Interactions)
+    {
+        id: 'cc1',
+        text: '🎨 PICTIONARY HUMANO. Dibuja algo con el dedo en la espalda de la persona de tu derecha. Si no lo adivina, ambas bebéis.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'medium',
+        points: 2
+    },
+    {
+        id: 'cc2',
+        text: '📖 CUENTO DE UNA PALABRA. Empezando por ti, cread una historia erótica diciendo una palabra cada una. La que se bloquee o repita, bebe.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'medium',
+        points: 3
+    },
+    {
+        id: 'cc3',
+        text: '🗿 ESTATUAS. En cualquier momento de esta ronda, si te quedas congelada, todas deben imitarte. La última en hacerlo bebe.',
+        type: 'rule',
+        mode: 'rule',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'soft',
+        points: 3
+    },
+    {
+        id: 'cc4',
+        text: '👀 MEDUSA. A la de 3, todas miran abajo. A la de 4, mirad a alguien. Si cruzáis miradas, gritad "¡MEDUSA!" y bebed un trago.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'general',
+        intensity: 'soft',
+        points: 2
+    },
+    {
+        id: 'cc5',
+        text: '💅 ESTILISTA BORRACHA. Peina o maquilla (mal) a la persona de tu izquierda. Debe dejarse o bebe 3 tragos.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'medium',
+        points: 3
+    },
+    {
+        id: 'cc6',
+        text: '🎤 KARAOKE MUDO. Actúa una canción famosa (sin sonido) durante 15s. Si nadie la saca, shot de castigo.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'medium',
+        points: 2
+    },
+    {
+        id: 'cc7',
+        text: '🤫 EL SECRETO. Susurra un secreto real a la persona de tu izquierda. Ella decide si es lo bastante bueno para salvarte o si bebes.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 3
+    },
+    {
+        id: 'cc8',
+        text: '🧟 ZOMBIE WALK. Todas debéis andar como zombies hasta el próximo turno. Quien rompa el personaje, bebe.',
+        type: 'rule',
+        mode: 'rule',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'soft',
+        points: 2
+    },
+    {
+        id: 'cc9',
+        text: '📞 LLAMADA FALSA. Coge tu móvil y finge la conversación más dramática posible durante 1 minuto. Si te ríes, bebes.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'medium',
+        points: 3
+    },
+    {
+        id: 'cc10',
+        text: '🥒 DUELO DE GEMIDOS VEGANOS. Gemid nombres de verduras ("¡Ohhh sí, brócoli!"). La que se ría pierde.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'spicy',
+        points: 3
+    },
+    {
+        id: 'cc11',
+        text: '🕵️‍♀️ ESPÍA. Elige una palabra común. Si alguien la dice antes de tu próximo turno, te bebes su bebida (o puntos).',
+        type: 'rule',
+        mode: 'rule',
+        drinkTrigger: 'none',
+        category: 'general',
+        intensity: 'medium',
+        specialEffect: 'steal',
+        points: 4
+    },
+    {
+        id: 'cc12',
+        text: '🧙‍♀️ EL ORÁCULO. El grupo te hace una pregunta sobre tu futuro amoroso. Debes responder con absoluta sinceridad o beber 3 tragos.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'romantic',
+        intensity: 'medium',
+        points: 2
+    },
+    {
+        id: 'cc13',
+        text: '🔄 CAMBIO DE ROL. Durante una ronda, tú eres ella (izquierda) y ella es tú. Imitad vuestra forma de hablar.',
+        type: 'rule',
+        mode: 'rule',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'spicy',
+        points: 4
+    },
+    {
+        id: 'cc14',
+        text: '📸 PAPARAZZI. La primera persona que saque el móvil y haga una foto al grupo gana 2 puntos. Las demás beben por lentas.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'general',
+        intensity: 'soft',
+        points: 2
+    },
+    {
+        id: 'cc15',
+        text: '🔥 CONFESIÓN ANÓNIMA (FAKE). Escribe una nota en el móvil y pásalo. Alguien la lee. Tenéis que adivinar de quién es (aunque sea inventada).',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'medium',
+        points: 3
+    },
+    // CREATIVE CHAOS BATCH 2 (More Improv & Fun)
+    {
+        id: 'cc16',
+        text: '🗣️ DOBLAJE. La persona de tu derecha mueve la boca sin sonido y tú debes ponerle una voz ridícula diciendo algo.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'medium',
+        points: 3
+    },
+    {
+        id: 'cc17',
+        text: '🤳 INFLUENCER. Haz una "story" o review de tu bebida como si te pagaran millones por ello. Véndenos la moto.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'soft',
+        points: 2
+    },
+    {
+        id: 'cc18',
+        text: '😈 ABOGADA DEL DIABLO. El grupo te da una opinión impopular (ej. "la pizza con piña es la mejor"). Tienes 1 min para defenderla a muerte.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'general',
+        intensity: 'medium',
+        points: 3
+    },
+    {
+        id: 'cc19',
+        text: '🧠 TELEPATÍA. Elige a una compañera. A la de 3, decid una palabra aleatoria. Si decís la misma, repartís 4 tragos. Si no, bebéis vosotras.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'general',
+        intensity: 'spicy',
+        points: 4
+    },
+    {
+        id: 'cc20',
+        text: '🐌 CÁMARA LENTA. Todo lo que hagas (beber, moverte, hablar) debe ser exageradamente lento hasta tu próximo turno.',
+        type: 'rule',
+        mode: 'rule',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'medium',
+        points: 3
+    },
+    {
+        id: 'cc21',
+        text: '🙏 LA SECTA. Inventa un gesto o saludo secreto. A partir de ahora, todas deben hacerlo antes de beber. Quien se olvide, bebe doble.',
+        type: 'rule',
+        mode: 'rule',
+        drinkTrigger: 'none',
+        category: 'general',
+        intensity: 'spicy',
+        points: 3
+    },
+    {
+        id: 'cc22',
+        text: '🤫 ASMR. Todo lo que digas hasta tu próximo turno debe ser susurrando y haciendo ruiditos relajantes (o grimosos).',
+        type: 'rule',
+        mode: 'rule',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'soft',
+        points: 2
+    },
+    {
+        id: 'cc23',
+        text: '🚂 CONGA. Levántate e inicia una conga. Quien se una, se salva. Quien se quede sentada, bebe 3 tragos por aguafiestas.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'medium',
+        points: 3
+    },
+    {
+        id: 'cc24',
+        text: '👗 FASHION POLICE. Critica (con humor y cariño) el outfit de alguien del grupo. Si consigues que se ría, bebe ella. Si se ofende, bebes tú.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 3
+    },
+    {
+        id: 'cc25',
+        text: '📰 TITULAR CLICKBAIT. Describe tu vida sexual actual con un titular de periódico sensacionalista.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'medium',
+        points: 2
+    },
+    {
+        id: 'cc26',
+        text: '🔮 LA VIDENTE. Lee la mano de la persona de tu izquierda e invéntate un futuro amoroso trágico y absurdo para ella.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'medium',
+        points: 2
+    },
+    {
+        id: 'cc27',
+        text: '🎭 SALIDA DRAMÁTICA. Si te levantas de la silla por cualquier razón, debes despedirte trágicamente como si fueras a la guerra.',
+        type: 'rule',
+        mode: 'rule',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'medium',
+        points: 2
+    },
+    {
+        id: 'cc28',
+        text: '🎤 RUEDA DE PRENSA. Eres una famosa en un escándalo. El grupo te hace 3 preguntas incómodas y debes responderlas.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'medium',
+        points: 3
+    },
+    {
+        id: 'cc29',
+        text: '🎤 EL MUSICAL. Todo lo que digas debe ser cantado (puedes inventar la melodía) hasta el próximo turno.',
+        type: 'rule',
+        mode: 'rule',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'medium',
+        points: 3
+    },
+    {
+        id: 'cc30',
+        text: '🧘‍♀️ GURÚ ESPIRITUAL. Inventa un mantra o frase "profunda" sin sentido. Todas deben repetirlo en coro con seriedad. La que se ría bebe.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'medium',
+        points: 2
+    }
+    ,
+    // ========================================================================
+    // 🔥 SPICY BATCH 3 (Sex, Questions, Lesbian Culture)
+    // ========================================================================
+    {
+        id: 'sx1',
+        text: '🐛 MANÍA SEXUAL. ¿Cuál es la manía más rara que tienes en la cama? (Si no la dices, bebe 2 tragos).',
+        type: 'question',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 3
+    },
+    {
+        id: 'sx2',
+        text: '🍓 FOOD PORN. ¿Alguna vez has usado comida en el sexo? ¿Qué fue? Si fue un desastre, cuéntalo.',
+        type: 'question',
+        mode: 'binary',
+        drinkTrigger: 'yes',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 2
+    },
+    {
+        id: 'sx3',
+        text: '📈 BODY COUNT ANUAL. Bebe si te has liado con más de 5 personas este año (o más de 10 si eres muy fiestera).',
+        type: 'viral',
+        mode: 'statement',
+        drinkTrigger: 'always',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 2
+    },
+    {
+        id: 'sx4',
+        text: '💔 DOS AMORES. Bebe si ahora mismo te gustan dos personas a la vez (o estás indecisa entre dos).',
+        type: 'viral',
+        mode: 'statement',
+        drinkTrigger: 'always',
+        category: 'romantic',
+        intensity: 'spicy',
+        points: 3
+    },
+    {
+        id: 'sx5',
+        text: '🌊 DESCRIBE ORGASMO. Describe tu mejor orgasmo con todo lujo de detalles. Si te da vergüenza o te niegas, bebe 3 tragos.',
+        type: 'question',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 4
+    },
+    {
+        id: 'sx6',
+        text: '🧘 MÍMICA SEXUAL. Describe tu postura sexual favorita sin hablar, solo con gestos. Las demás deben adivinarla.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'spicy',
+        points: 3
+    },
+    {
+        id: 'sx7',
+        text: '💦 SQUIRT TALK. ¿Alguna vez has hecho squirt o te lo han hecho? Cuenta la experiencia (o bebe si te da vergüenza).',
+        type: 'question',
+        mode: 'binary',
+        drinkTrigger: 'yes',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 3
+    },
+    {
+        id: 'sx8',
+        text: '🌳 SITIO PÚBLICO. ¿El sitio más público y arriesgado donde lo has hecho? (Cuanto más loco, más puntos).',
+        type: 'question',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 3
+    },
+    {
+        id: 'sx9',
+        text: '🤫 JUGUETES OCULTOS. ¿Tienes algún juguete sexual que escondas como si fuera un tesoro? ¿Cuál es?',
+        type: 'question',
+        mode: 'binary',
+        drinkTrigger: 'yes',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 2
+    },
+    {
+        id: 'sx10',
+        text: '👙 LENCERÍA VS COMODIDAD. ¿Qué prefieres: lencería sexy incómoda o bragas de abuela cómodas? Bebe si llevas las segundas ahora.',
+        type: 'question',
+        mode: 'binary',
+        drinkTrigger: 'yes',
+        category: 'fun',
+        intensity: 'medium',
+        points: 1
+    },
+    {
+        id: 'sx11',
+        text: '🔊 GEMIDOS. Imita el ruido que hace tu pareja (o tú) cuando se corre. Si no lo haces, 3 tragos.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 3
+    },
+    {
+        id: 'sx12',
+        text: '⚡ AQUÍ TE PILLO. ¿Te gustan los "aquí te pillo, aquí te mato" o necesitas mil horas de preparación romántica?',
+        type: 'question',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'romantic',
+        intensity: 'medium',
+        points: 2
+    },
+    {
+        id: 'sx13',
+        text: '💭 FANTASÍA INCONFESABLE. Confiesa una fantasía sexual que te dé vergüenza admitir (o bebe 3 tragos si no te atreves).',
+        type: 'question',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 3
+    },
+    {
+        id: 'sx14',
+        text: '🍷 SEXO PRIMERA CITA. ¿Sexo en la primera cita? ¿A favor o en contra? Debate serio de 1 minuto.',
+        type: 'question',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'general',
+        intensity: 'medium',
+        points: 1
+    },
+    {
+        id: 'sx15',
+        text: '👑 DOMINANTE O SUMISA. ¿Qué rol prefieres en la cama? Explica por qué te pone. (Si no contestas, 2 tragos).',
+        type: 'question',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 2
+    },
+    {
+        id: 'sx16',
+        text: '👉 CRUSH COMÚN. A la de 3, señalad a la persona del grupo con la que tendríais un trío. Si coincidís, chupito de celebración.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 4
+    },
+    {
+        id: 'sx17',
+        text: '🔄 LESBIAN DRAMA. Bebe si alguna vez has vuelto con tu ex más de 3 veces (tóxica).',
+        type: 'viral',
+        mode: 'statement',
+        drinkTrigger: 'always',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 2
+    },
+    {
+        id: 'sx18',
+        text: '�️‍♀️ HISTORIAL WEB. Desbloquea tu móvil y deja que la persona de tu derecha vea tu historial de navegación (o bebe 4 tragos).',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 4
+    },
+    {
+        id: 'sx19',
+        text: '📱 TINDER TERROR. Cuenta tu peor cita de Tinder/Bumble. Si todas coinciden en que es horrible, mandas 3 tragos.',
+        type: 'question',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'medium',
+        points: 2
+    },
+    {
+        id: 'sx20',
+        text: '💍 MATRIMONIO. Bebe si ya tienes planeada tu boda ideal (aunque no tengas pareja actualmente).',
+        type: 'viral',
+        mode: 'statement',
+        drinkTrigger: 'always',
+        category: 'romantic',
+        intensity: 'soft',
+        points: 1
+    }
+    ,
+    // ========================================================================
+    // ⚡ HIGH VOLTAGE BATCH 4 (Extreme Questions, Dirty Talk, Action)
+    // ========================================================================
+    {
+        id: 'hv1',
+        text: '👉 CRUSH DIRECTO. Señala a la persona de este grupo con la que tendrías sexo AHORA MISMO. (Si no señalas, te acabas la copa).',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 5
+    },
+    {
+        id: 'hv2',
+        text: '👂 DIRTY TALK. Susúrrale algo extremadamente sucio al oído a la persona de tu izquierda. Si se pone roja, ganas 3 puntos.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 3
+    },
+    {
+        id: 'hv3',
+        text: '🪑 POSTURA SILLA. Demuestra tu postura sexual favorita usando solo una silla (con ropa, por favor... o no).',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 4
+    },
+    {
+        id: 'hv4',
+        text: '👅 TRAGAR O ESCUPIR. ¿Eres de tragar o de escupir? Responde rápido y sin pensar. (Bebe si dudas).',
+        type: 'question',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 2
+    },
+    {
+        id: 'hv5',
+        text: '🍑 ANAL. ¿A favor, en contra o "solo si me lo piden"? Debate serio de 1 minuto.',
+        type: 'question',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 2
+    },
+    {
+        id: 'hv6',
+        text: '🧸 TOYS. ¿Cuál es tu juguete sexual favorito y cómo lo usas? (Detalles, queremos detalles).',
+        type: 'question',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 3
+    },
+    {
+        id: 'hv7',
+        text: '🤐 SIN MANOS. Intenta quitarle una prenda de ropa a la persona de tu derecha usando solo la boca. (Si fallas, bebe).',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 4
+    },
+    {
+        id: 'hv8',
+        text: '🔥STRIPTEASE. Haz un baile sexy de 10 segundos. Si el grupo aplaude, repartes 3 tragos. Si hay silencio, bebes tú.',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 4
+    },
+    {
+        id: 'hv9',
+        text: '💋 BESO DE 3. Elige a dos personas para daros un beso de tres (pico o con lengua, vosotras decidís).',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'romantic',
+        intensity: 'spicy',
+        points: 5
+    },
+    {
+        id: 'hv10',
+        text: '👙 ROPA INTERIOR. Dinos de qué color es tu ropa interior ahora mismo. (Si no llevas, ganas 5 puntos directos).',
+        type: 'question',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'medium',
+        points: 2
+    }
+    ,
+    // ========================================================================
+    // 🔥 SPICY BATCH 2 (Kinks, Taboos, Exhibitionism)
+    // ========================================================================
+    {
+        id: 'sx21',
+        text: '⛓️ KINKS. ¿Te gusta atar, que te aten o ninguna? (Si no respondes, bebe 3 tragos).',
+        type: 'question',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 3
+    },
+    {
+        id: 'sx22',
+        text: '👋 AZOTES. ¿Te gustan los azotes? ¿Suaves o que dejen marca? Sincérate.',
+        type: 'question',
+        mode: 'binary',
+        drinkTrigger: 'yes',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 2
+    },
+    {
+        id: 'sx23',
+        text: '🏖️ EXHIBICIONISMO. ¿Sex on the beach? ¿En un coche? Cuenta tu experiencia más "pública".',
+        type: 'question',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 3
+    },
+    {
+        id: 'sx24',
+        text: '🍎 TABÚ PROFESOR. Bebe si alguna vez te has liado (o has tenido ganas muy fuertes) con una profesora o jefa.',
+        type: 'viral',
+        mode: 'statement',
+        drinkTrigger: 'always',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 2
+    },
+    {
+        id: 'sx25',
+        text: '🕶️ SENSORY. Bebe si te pone que te venden los ojos y no saber qué te van a hacer.',
+        type: 'viral',
+        mode: 'statement',
+        drinkTrigger: 'always',
+        category: 'spicy',
+        intensity: 'medium',
+        points: 2
+    },
+    {
+        id: 'sx26',
+        text: '😈 ROL. ¿Te pondría fingir que sois desconocidas en un bar? Bebe si lo has hecho.',
+        type: 'viral',
+        mode: 'statement',
+        drinkTrigger: 'always',
+        category: 'spicy',
+        intensity: 'medium',
+        points: 2
+    },
+    {
+        id: 'sx27',
+        text: '🔼 TRÍOs. Si pudieras hacer un trío con dos famosas, ¿quiénes serían?',
+        type: 'question',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'medium',
+        points: 3
+    },
+    {
+        id: 'sx28',
+        text: '📉 GATILLAZO. Cuenta una vez que "no funcionó" o que parasteis por algo muy incómodo. (Risas aseguradas).',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'fun',
+        intensity: 'medium',
+        points: 3
+    },
+    {
+        id: 'sx29',
+        text: '📹 SEXTAPE. ¿Te grabarías haciéndolo? ¿Lo has hecho? (Bebe si tienes un vídeo guardado ahora mismo).',
+        type: 'question',
+        mode: 'binary',
+        drinkTrigger: 'yes',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 4
+    },
+    {
+        id: 'sx30',
+        text: '🚿 DUCHA. ¿Sexo en la ducha: sobrevalorado o fantasía? Debate de 30 segundos.',
+        type: 'question',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'general',
+        intensity: 'medium',
+        points: 1
+    },
+    {
+        id: 'sx31',
+        text: '💋 DISFRAZ SEXY. ¿Qué disfraz te pondría a mil ver en tu pareja? (Enfermera, policía, catwoman...).',
+        type: 'question',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'medium',
+        points: 2
+    },
+    {
+        id: 'sx32',
+        text: '🤫 SILENCIO. ¿Eres de las que grita como loca o de las que aguanta el gemido? Haz una demostración (o bebe).',
+        type: 'challenge',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 3
+    },
+    {
+        id: 'sx33',
+        text: '🦶 PIES. ¿Te ponen los pies? (No juzgamos... mucho). Bebe si sí.',
+        type: 'question',
+        mode: 'binary',
+        drinkTrigger: 'yes',
+        category: 'spicy',
+        intensity: 'medium',
+        points: 2
+    },
+    {
+        id: 'sx34',
+        text: '🩸 REGLA. ¿Sexo con la regla: sí o no? ¡Manchar las sábanas es de guerreras!',
+        type: 'question',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'general',
+        intensity: 'medium',
+        points: 1
+    },
+    {
+        id: 'sx35',
+        text: '🔞 LUGAR PROHIBIDO. Confiesa el sitio donde te encantaría hacerlo pero te pueden detener.',
+        type: 'question',
+        mode: 'statement',
+        drinkTrigger: 'none',
+        category: 'spicy',
+        intensity: 'spicy',
+        points: 3
     }
 ];
