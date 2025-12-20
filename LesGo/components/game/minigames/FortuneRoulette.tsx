@@ -132,6 +132,13 @@ export default function FortuneRoulette({ visible, onClose, colors }: FortuneRou
     return (
         <View style={styles.overlay}>
             <View style={[styles.container, { backgroundColor: colors.modalBackground }]}>
+                <TouchableOpacity
+                    onPress={() => onClose(null)}
+                    style={{ position: 'absolute', top: 15, right: 15, zIndex: 100 }}
+                >
+                    <FontAwesome name="close" size={30} color={colors.text} />
+                </TouchableOpacity>
+
                 <Text style={[styles.title, { color: colors.text }]}>¡RULETA DE LA SUERTE!</Text>
 
                 <View style={styles.wheelContainer}>

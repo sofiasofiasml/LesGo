@@ -23,6 +23,8 @@ import HighLow from '@/components/game/minigames/HighLow';
 import HotPotato from '@/components/game/minigames/HotPotato';
 import PrecisionSniper from '@/components/game/minigames/PrecisionSniper';
 import WireCut from '@/components/game/minigames/WireCut';
+import ShakeIt from '@/components/game/minigames/ShakeIt';
+import FingerRoulette from '@/components/game/minigames/FingerRoulette';
 
 // Fisher-Yates Shuffle Algorithm
 const shuffleArray = (array: Card[]) => {
@@ -105,6 +107,8 @@ export default function GameScreen() {
     const [showHotPotato, setShowHotPotato] = useState(false);
     const [showPrecisionSniper, setShowPrecisionSniper] = useState(false);
     const [showWireCut, setShowWireCut] = useState(false);
+    const [showShakeIt, setShowShakeIt] = useState(false);
+    const [showFingerRoulette, setShowFingerRoulette] = useState(false);
     const [showGiftBox, setShowGiftBox] = useState(false);
     const [isArcadeMode, setIsArcadeMode] = useState(true);
     const [isMinigameOnlyMode, setIsMinigameOnlyMode] = useState(false);
@@ -408,7 +412,10 @@ export default function GameScreen() {
 
     const handleFortuneResult = (result: any) => {
         setShowFortuneRoulette(false);
-        if (!result) return;
+        if (!result) {
+            nextTurn();
+            return;
+        }
 
         const currentPlayer = players[currentPlayerIndex];
 
@@ -473,6 +480,8 @@ export default function GameScreen() {
             { key: 'potato', name: 'La Bomba 💣', description: 'Pásalo rápido antes de que explote.', icon: 'bomb', action: () => setShowHotPotato(true) },
             { key: 'sniper', name: 'Francotirador 🎯', description: 'Para el tiempo EXACTAMENTE en el objetivo.', icon: 'crosshairs', action: () => setShowPrecisionSniper(true) },
             { key: 'wire', name: 'Corta Cables ✂️', description: 'Elige el cable correcto... si te atreves.', icon: 'scissors', action: () => setShowWireCut(true) },
+            { key: 'shake', name: 'El Batido 🥤', description: 'Agita el móvil con fuerza.', icon: 'vibrate', action: () => setShowShakeIt(true) },
+            { key: 'finger', name: 'Ruleta de Dedos 👆', description: 'Poned los dedos en la pantalla.', icon: 'hand-paper-o', action: () => setShowFingerRoulette(true) },
         ];
 
         const selected = minigames[Math.floor(Math.random() * minigames.length)];
@@ -555,8 +564,9 @@ export default function GameScreen() {
         if (effect === 'minigame_potato') { setTimeout(() => setShowHotPotato(true), 500); return; }
         if (effect === 'minigame_sniper') { setTimeout(() => setShowPrecisionSniper(true), 500); return; }
         if (effect === 'minigame_wire') { setTimeout(() => setShowWireCut(true), 500); return; }
+        if (effect === 'minigame_shakeit') { setTimeout(() => setShowShakeIt(true), 500); return; }
+        if (effect === 'minigame_finger') { setTimeout(() => setShowFingerRoulette(true), 500); return; }
 
-        // Arcade Mode Random Exception
         // Arcade Mode Random Exception
         if (isArcadeMode && !effect) {
             // 25% Chance to trigger a minigame "card"
@@ -1748,9 +1758,33 @@ export default function GameScreen() {
                         addPoints(players[currentPlayerIndex], 0);
                         nextTurn();
                     } else {
-                        handleDrink('¡BOOM!\n(3 Tragos)');
+                        handleDrink('¡BOOM! CABLES CRUZADOS.\n(3 Tragos)');
                         addPoints(players[currentPlayerIndex], 3);
                     }
+                }}
+                colors={colors}
+            />
+
+            <ShakeIt
+                visible={showShakeIt}
+                onClose={(success) => {
+                    setShowShakeIt(false);
+                    if (success) {
+                        addPoints(players[currentPlayerIndex], 0);
+                        nextTurn();
+                    } else {
+                        handleDrink('¡QUÉ FLOJA!\n(2 Tragos)');
+                        addPoints(players[currentPlayerIndex], 2);
+                    }
+                }}
+                colors={colors}
+            />
+
+            <FingerRoulette
+                visible={showFingerRoulette}
+                onClose={() => {
+                    setShowFingerRoulette(false);
+                    nextTurn();
                 }}
                 colors={colors}
             />

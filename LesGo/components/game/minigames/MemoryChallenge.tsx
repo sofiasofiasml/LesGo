@@ -49,12 +49,14 @@ export default function MemoryChallenge({ visible, onClose, colors }: MemoryChal
     };
 
     const startGame = () => {
-        generateNextRound([]);
+        generateNextRound(1);
     };
 
-    const generateNextRound = (currentSeq: string[]) => {
-        const randomColor = COLORS[Math.floor(Math.random() * COLORS.length)].id;
-        const newSeq = [...currentSeq, randomColor];
+    const generateNextRound = (targetLength: number) => {
+        const newSeq = [];
+        for (let i = 0; i < targetLength; i++) {
+            newSeq.push(COLORS[Math.floor(Math.random() * COLORS.length)].id);
+        }
         setSequence(newSeq);
         setUserSequence([]);
         setGameState('showing');
@@ -68,7 +70,7 @@ export default function MemoryChallenge({ visible, onClose, colors }: MemoryChal
         for (let i = 0; i < seq.length; i++) {
             const colorId = seq[i];
             await flashColor(colorId);
-            await new Promise(r => setTimeout(r, 300)); // Gap between flashes
+            await new Promise(r => setTimeout(r, 200)); // FASTER GAP
         }
 
         setGameState('input');
@@ -81,9 +83,9 @@ export default function MemoryChallenge({ visible, onClose, colors }: MemoryChal
         opacity.value = 0.4;
         setTimeout(() => {
             opacity.value = 1;
-        }, 300);
+        }, 200); // FASTER FLASH
 
-        await new Promise(r => setTimeout(r, 300));
+        await new Promise(r => setTimeout(r, 200));
     };
 
     const handleInput = (colorId: string) => {
@@ -115,7 +117,7 @@ export default function MemoryChallenge({ visible, onClose, colors }: MemoryChal
                 // Next Round
                 setRound(r => r + 1);
                 setGameState('showing');
-                setTimeout(() => generateNextRound(sequence), 1000);
+                setTimeout(() => generateNextRound(round + 1), 1000);
             }
         }
     };

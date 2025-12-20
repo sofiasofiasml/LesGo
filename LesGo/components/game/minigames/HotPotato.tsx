@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, Animated, Easing } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
 
 interface HotPotatoProps {
     visible: boolean;
@@ -91,9 +91,14 @@ export default function HotPotato({ visible, onClose, colors }: HotPotatoProps) 
                     styles.container,
                     { backgroundColor: gameState === 'boom' ? '#FFCDD2' : colors.cardBackground, borderColor: colors.pink }
                 ]}>
-                    <Text style={[styles.title, { color: colors.text }]}>
-                        {gameState === 'idle' ? 'LA BOMBA' : gameState === 'ticking' ? 'TIC... TAC...' : '¡BOOM!'}
-                    </Text>
+                    <View style={styles.header}>
+                        <Text style={[styles.title, { color: colors.text, marginBottom: 0 }]}>
+                            {gameState === 'idle' ? 'LA BOMBA' : gameState === 'ticking' ? 'TIC... TAC...' : '¡BOOM!'}
+                        </Text>
+                        <TouchableOpacity onPress={() => onClose(false)} style={styles.closeBtn}>
+                            <FontAwesome name="close" size={24} color={colors.text} />
+                        </TouchableOpacity>
+                    </View>
 
                     <View style={styles.iconContainer}>
                         {gameState === 'idle' && (
@@ -147,10 +152,22 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         elevation: 10,
     },
+    header: {
+        width: '100%',
+        flexDirection: 'row',
+        justifyContent: 'center', // Center title
+        alignItems: 'center',
+        marginBottom: 30,
+        position: 'relative'
+    },
+    closeBtn: {
+        position: 'absolute',
+        right: 0,
+        top: 0
+    },
     title: {
         fontSize: 32,
         fontWeight: 'bold',
-        marginBottom: 30,
         textAlign: 'center',
     },
     iconContainer: {

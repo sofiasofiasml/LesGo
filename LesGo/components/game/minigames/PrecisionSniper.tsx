@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
 
 interface PrecisionSniperProps {
     visible: boolean;
@@ -86,7 +86,12 @@ export default function PrecisionSniper({ visible, onClose, colors }: PrecisionS
         <Modal transparent visible={visible} animationType="slide">
             <View style={[styles.overlay, { backgroundColor: 'rgba(0,0,0,0.95)' }]}>
                 <View style={[styles.container, { backgroundColor: colors.modalBackground, borderColor: colors.pink }]}>
-                    <Text style={[styles.title, { color: colors.text }]}>EL FRANCOTIRADOR</Text>
+                    <View style={styles.header}>
+                        <Text style={[styles.title, { color: colors.text }]}>EL FRANCOTIRADOR</Text>
+                        <TouchableOpacity onPress={() => onClose(false)} style={styles.closeBtn}>
+                            <FontAwesome name="close" size={24} color={colors.text} />
+                        </TouchableOpacity>
+                    </View>
 
                     <Text style={[styles.targetText, { color: colors.lightOrange }]}>OBJETIVO: 5.00s</Text>
 
@@ -152,10 +157,21 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         alignItems: 'center',
     },
+    header: {
+        width: '100%',
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 10,
+        position: 'relative'
+    },
+    closeBtn: {
+        position: 'absolute',
+        right: 0,
+    },
     title: {
         fontSize: 26,
         fontWeight: 'bold',
-        marginBottom: 10,
     },
     targetText: {
         fontSize: 20,

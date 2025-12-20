@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, Animated } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
 
 interface WireCutProps {
     visible: boolean;
@@ -83,9 +83,14 @@ export default function WireCut({ visible, onClose, colors }: WireCutProps) {
         <Modal transparent visible={visible} animationType="slide">
             <View style={[styles.overlay, { backgroundColor: gameState === 'boom' ? '#D32F2F' : 'rgba(0,0,0,0.95)' }]}>
                 <View style={[styles.container, { backgroundColor: colors.modalBackground, borderColor: colors.pink }]}>
-                    <Text style={[styles.title, { color: colors.text }]}>
-                        {gameState === 'boom' ? '💀💥💀' : 'CORTA CABLES'}
-                    </Text>
+                    <View style={styles.header}>
+                        <Text style={[styles.title, { color: colors.text }]}>
+                            {gameState === 'boom' ? '💀💥💀' : 'CORTA CABLES'}
+                        </Text>
+                        <TouchableOpacity onPress={() => onClose(false)} style={styles.closeBtn}>
+                            <FontAwesome name="close" size={24} color={colors.text} />
+                        </TouchableOpacity>
+                    </View>
 
                     <MaterialCommunityIcons
                         name={gameState === 'boom' ? "bomb-off" : "bomb"}
@@ -154,10 +159,21 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         alignItems: 'center',
     },
+    header: {
+        width: '100%',
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 20,
+        position: 'relative'
+    },
+    closeBtn: {
+        position: 'absolute',
+        right: 0,
+    },
     title: {
         fontSize: 28,
         fontWeight: 'bold',
-        marginBottom: 10,
     },
     message: {
         fontSize: 20,
