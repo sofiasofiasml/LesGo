@@ -480,7 +480,7 @@ export default function GameScreen() {
             { key: 'potato', name: 'La Bomba 💣', description: 'Pásalo rápido antes de que explote.', icon: 'bomb', action: () => setShowHotPotato(true) },
             { key: 'sniper', name: 'Francotirador 🎯', description: 'Para el tiempo EXACTAMENTE en el objetivo.', icon: 'crosshairs', action: () => setShowPrecisionSniper(true) },
             { key: 'wire', name: 'Corta Cables ✂️', description: 'Elige el cable correcto... si te atreves.', icon: 'scissors', action: () => setShowWireCut(true) },
-            { key: 'shake', name: 'El Batido 🥤', description: 'Agita el móvil con fuerza.', icon: 'vibrate', action: () => setShowShakeIt(true) },
+            { key: 'shake', name: 'El Batido 🥤', description: 'Agita el móvil con fuerza.', icon: 'mobile', action: () => setShowShakeIt(true) },
             { key: 'finger', name: 'Ruleta de Dedos 👆', description: 'Poned los dedos en la pantalla.', icon: 'hand-paper-o', action: () => setShowFingerRoulette(true) },
         ];
 

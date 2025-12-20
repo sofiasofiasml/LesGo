@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, Animated, Dimensions, PanResponder } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, Dimensions, PanResponder } from 'react-native';
 import { MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
@@ -23,6 +23,9 @@ export default function FingerRoulette({ visible, onClose, colors }: FingerRoule
     const touchesRef = useRef<TouchPoint[]>([]); // Synced ref for immediate access
     const [gameState, setGameState] = useState<'waiting' | 'countdown' | 'choosing' | 'result'>('waiting');
     const gameStateRef = useRef<'waiting' | 'countdown' | 'choosing' | 'result'>('waiting'); // Ref to avoid stale closures in PanResponder
+
+    // GUARD: Prevent double triggering (race between timer and manual close)
+    const isClosingRef = useRef(false);
 
     const [message, setMessage] = useState('Poned un dedo en la pantalla');
     const [rouletteAnim, setRouletteAnim] = useState<string | null>(null);
@@ -49,6 +52,14 @@ export default function FingerRoulette({ visible, onClose, colors }: FingerRoule
         setLoserId(null);
         setRouletteAnim(null);
         clearTimeout(timerRef.current);
+        isClosingRef.current = false; // Reset lock
+    };
+
+    const safeClose = (success: boolean) => {
+        if (isClosingRef.current) return;
+        isClosingRef.current = true;
+        clearTimeout(timerRef.current);
+        onClose(success);
     };
 
     // Since React Native Web / Expo Go standard View may handle touches differently,
@@ -106,13 +117,13 @@ export default function FingerRoulette({ visible, onClose, colors }: FingerRoule
         setGameState('countdown');
         gameStateRef.current = 'countdown'; // Immediate Block
 
-        setMessage('¡ENTRAD TODOS!\n10');
+        setMessage('¡ENTRAD TODOS!\n5');
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
         // Clear any existing
         if (timerRef.current) clearInterval(timerRef.current);
 
-        let count = 10;
+        let count = 5;
         timerRef.current = setInterval(() => {
             count--;
             if (count > 0) {
@@ -168,70 +179,89 @@ export default function FingerRoulette({ visible, onClose, colors }: FingerRoule
                 setGameState('result');
                 setMessage('¡TU PIERDES!');
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
+                // Auto-close after 5 seconds
+                timerRef.current = setTimeout(() => {
+                    safeClose(false);
+                }, 5000);
             }
         }, 100);
     };
 
-    const handleClose = () => {
-        onClose(false); // Loser drinks, so "success" is relative. Usually we open drink modal or just close?
-        // If we close, we assume penalty is applied or just show result.
-        // Let's pass true/false? If 'result', maybe just close.
-    };
-
     return (
         <Modal transparent visible={visible} animationType="fade">
-            {/* Full screen touch handler */}
-            <View
-                style={[styles.overlay, { backgroundColor: 'rgba(0,0,0,0.95)' }]}
-                {...panResponder.panHandlers}
-            >
-                <Text style={[styles.title, { color: colors.text, marginTop: 50 }]}>
-                    RULETA DE DEDOS
-                </Text>
-
-                <TouchableOpacity
-                    onPress={() => onClose(false)}
-                    style={{ position: 'absolute', top: 50, right: 30, zIndex: 10 }}
+            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)' }}>
+                {/* 1. TOUCH LAYER (Bottom) - Captures fingers only */}
+                <View
+                    style={StyleSheet.absoluteFill}
+                    {...panResponder.panHandlers}
                 >
-                    <FontAwesome name="close" size={30} color={colors.text} />
-                </TouchableOpacity>
+                    {touches.map(t => (
+                        <View key={t.id} style={[
+                            styles.finger,
+                            {
+                                left: t.x - 40,
+                                top: t.y - 40,
+                                borderColor: t.color,
+                                backgroundColor: ((gameState === 'result' && loserId === t.id) || (gameState === 'choosing' && rouletteAnim === t.id)) ? t.color : 'transparent',
+                                transform: [{ scale: ((gameState === 'result' && loserId === t.id) || (gameState === 'choosing' && rouletteAnim === t.id)) ? 1.5 : 1 }]
+                            }
+                        ]}>
+                            <View style={[styles.fingerInner, { backgroundColor: t.color }]} />
+                            {gameState === 'result' && loserId === t.id && (
+                                <MaterialCommunityIcons name="skull" size={40} color="white" />
+                            )}
+                        </View>
+                    ))}
 
-                <Text style={[styles.message, { color: colors.text }]}>
-                    {message}
-                </Text>
+                    {gameState === 'waiting' && touches.length === 0 && (
+                        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                            <MaterialCommunityIcons name="gesture-tap-hold" size={60} color={colors.text} style={{ opacity: 0.5 }} />
+                        </View>
+                    )}
+                </View>
 
-                {/* Render Touch Points */}
-                {touches.map(t => (
-                    <View key={t.id} style={[
-                        styles.finger,
-                        {
-                            left: t.x - 40,
-                            top: t.y - 40,
-                            borderColor: t.color,
-                            backgroundColor: ((gameState === 'result' && loserId === t.id) || (gameState === 'choosing' && rouletteAnim === t.id)) ? t.color : 'transparent',
-                            transform: [{ scale: ((gameState === 'result' && loserId === t.id) || (gameState === 'choosing' && rouletteAnim === t.id)) ? 1.5 : 1 }]
-                        }
-                    ]}>
-                        <View style={[styles.fingerInner, { backgroundColor: t.color }]} />
-                        {gameState === 'result' && loserId === t.id && (
-                            <MaterialCommunityIcons name="skull" size={40} color="white" />
-                        )}
-                    </View>
-                ))}
+                {/* 2. UI LAYER (Top) - Allows clicks on buttons, passes touches elsewhere */}
+                <View style={[StyleSheet.absoluteFill, { alignItems: 'center' }]} pointerEvents="box-none">
+                    <Text style={[styles.title, { color: colors.text, marginTop: 50 }]}>
+                        RULETA DE DEDOS
+                    </Text>
 
-                {gameState === 'result' && (
-                    <View style={[styles.resultModal, { backgroundColor: colors.modalBackground, borderColor: colors.pink }]}>
-                        <Text style={[styles.resultText, { color: colors.text }]}>¡HAS PERDIDO!</Text>
-                        <Text style={[styles.subText, { color: colors.text }]}>Te toca beber 2 tragos</Text>
-                        <TouchableOpacity style={[styles.button, { backgroundColor: '#F44336' }]} onPress={handleClose}>
-                            <Text style={styles.buttonText}>ACEPTAR</Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
+                    <TouchableOpacity
+                        onPress={() => safeClose(false)}
+                        style={{ position: 'absolute', top: 50, right: 30, zIndex: 10 }}
+                    >
+                        <FontAwesome name="close" size={30} color={colors.text} />
+                    </TouchableOpacity>
 
-                {gameState === 'waiting' && touches.length === 0 && (
-                    <MaterialCommunityIcons name="gesture-tap-hold" size={60} color={colors.text} style={{ opacity: 0.5, marginTop: 50 }} />
-                )}
+                    <Text style={[styles.message, { color: colors.text }]}>
+                        {message}
+                    </Text>
+
+                    {gameState === 'result' && (() => {
+                        const loserTouch = touches.find(t => t.id === loserId);
+                        const isLoserBottom = loserTouch ? loserTouch.y > (Dimensions.get('window').height / 2) : false;
+
+                        return (
+                            <View style={[
+                                styles.resultModal,
+                                {
+                                    backgroundColor: colors.modalBackground,
+                                    borderColor: colors.pink,
+                                    // If loser is at bottom, show at top. If at top, show at bottom.
+                                    top: isLoserBottom ? 120 : undefined,
+                                    bottom: isLoserBottom ? undefined : 80,
+                                }
+                            ]}>
+                                <Text style={[styles.resultText, { color: colors.text }]}>¡HAS PERDIDO!</Text>
+                                <Text style={[styles.subText, { color: colors.text }]}>Te toca beber 2 tragos</Text>
+                                <TouchableOpacity style={[styles.button, { backgroundColor: '#F44336' }]} onPress={() => safeClose(false)}>
+                                    <Text style={styles.buttonText}>ACEPTAR</Text>
+                                </TouchableOpacity>
+                            </View>
+                        );
+                    })()}
+                </View>
             </View>
         </Modal>
     );
