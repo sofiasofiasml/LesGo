@@ -47,7 +47,7 @@ export default function FortuneRoulette({ visible, onClose, colors }: FortuneRou
     const [spinning, setSpinning] = useState(false);
     const [result, setResult] = useState<any>(null);
     const rotation = useSharedValue(0);
-    const lastHapticAngle = useRef(0);
+    const lastHapticAngle = useSharedValue(0);
 
     // Reset on appear
     useEffect(() => {
@@ -55,7 +55,7 @@ export default function FortuneRoulette({ visible, onClose, colors }: FortuneRou
             setSpinning(false);
             setResult(null);
             rotation.value = 0;
-            lastHapticAngle.current = 0;
+            lastHapticAngle.value = 0;
         }
     }, [visible]);
 
@@ -67,11 +67,11 @@ export default function FortuneRoulette({ visible, onClose, colors }: FortuneRou
 
     useDerivedValue(() => {
         const currentAngle = rotation.value % 360;
-        const diff = Math.abs(currentAngle - lastHapticAngle.current);
+        const diff = Math.abs(currentAngle - lastHapticAngle.value);
         // Trigger haptic every time we cross a segment boundary approx
         if (diff > SEGMENT_ANGLE) {
             runOnJS(triggerHaptic)();
-            lastHapticAngle.current = currentAngle;
+            lastHapticAngle.value = currentAngle;
         }
     });
 
