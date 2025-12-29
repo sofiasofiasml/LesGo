@@ -93,7 +93,7 @@ export default function StopTheBus({ visible, onClose, colors }: StopTheBusProps
                     <Text style={{ color: colors.text, marginBottom: 30, textAlign: 'center' }}>
                         {gameState === 'start' ? 'Detén la barra en la zona VERDE.' :
                             gameState === 'playing' ? '¡AHORA!' :
-                                gameState === 'won' ? '¡PERFECTO!' : '¡FAIL!'}
+                                gameState === 'won' ? '¡PERFECTO!' : '¡FALLO!'}
                     </Text>
 
                     {/* BAR CONTAINER */}
@@ -125,20 +125,25 @@ export default function StopTheBus({ visible, onClose, colors }: StopTheBusProps
                                 onPress={stop}
                                 activeOpacity={0.8}
                             >
-                                <Text style={styles.stopButtonText}>STOP!</Text>
+                                <Text style={styles.stopButtonText}>¡YA!</Text>
                             </TouchableOpacity>
                         )}
 
                         {(gameState === 'won' || gameState === 'lost') && (
                             <View style={{ alignItems: 'center' }}>
                                 <Text style={[styles.resultText, { color: gameState === 'won' ? '#4CD964' : '#FF3B30' }]}>
-                                    {gameState === 'won' ? '¡QUÉ PUNTERÍA!' : '¡TE PASASTE!'}
+                                    {gameState === 'won' ? '¡CLAVADO!' : '¡FALLASTE!'}
                                 </Text>
+                                {gameState === 'lost' && (
+                                    <Text style={{ color: colors.text, marginBottom: 15, fontSize: 16 }}>
+                                        Te toca beber.
+                                    </Text>
+                                )}
                                 <TouchableOpacity
                                     style={[styles.button, { backgroundColor: colors.orange, marginTop: 10 }]}
                                     onPress={() => onClose(gameState === 'won')}
                                 >
-                                    <Text style={styles.buttonText}>CONTINUAR</Text>
+                                    <Text style={styles.buttonText}>ACEPTAR</Text>
                                 </TouchableOpacity>
                             </View>
                         )}

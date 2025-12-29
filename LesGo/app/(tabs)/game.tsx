@@ -25,6 +25,8 @@ import PrecisionSniper from '@/components/game/minigames/PrecisionSniper';
 import WireCut from '@/components/game/minigames/WireCut';
 import ShakeIt from '@/components/game/minigames/ShakeIt';
 import FingerRoulette from '@/components/game/minigames/FingerRoulette';
+import FingerSoccer from '@/components/game/minigames/FingerSoccer';
+import SmashOrPass from '@/components/game/minigames/SmashOrPass';
 
 // Fisher-Yates Shuffle Algorithm
 const shuffleArray = (array: Card[]) => {
@@ -109,10 +111,13 @@ export default function GameScreen() {
     const [showWireCut, setShowWireCut] = useState(false);
     const [showShakeIt, setShowShakeIt] = useState(false);
     const [showFingerRoulette, setShowFingerRoulette] = useState(false);
+    const [showFingerSoccer, setShowFingerSoccer] = useState(false);
+    const [showSmashOrPass, setShowSmashOrPass] = useState(false);
     const [showGiftBox, setShowGiftBox] = useState(false);
     const [isArcadeMode, setIsArcadeMode] = useState(true);
     const [isMinigameOnlyMode, setIsMinigameOnlyMode] = useState(false);
 
+    const [minigameCounts, setMinigameCounts] = useState<Record<string, number>>({});
 
     // Timer Effect
     useEffect(() => {
@@ -482,9 +487,31 @@ export default function GameScreen() {
             { key: 'wire', name: 'Corta Cables ✂️', description: 'Elige el cable correcto... si te atreves.', icon: 'scissors', action: () => setShowWireCut(true) },
             { key: 'shake', name: 'El Batido 🥤', description: 'Agita el móvil con fuerza.', icon: 'mobile', action: () => setShowShakeIt(true) },
             { key: 'finger', name: 'Ruleta de Dedos 👆', description: 'Poned los dedos en la pantalla.', icon: 'hand-paper-o', action: () => setShowFingerRoulette(true) },
+            { key: 'soccer', name: 'Finger Soccer ⚽', description: 'Partido de dedos 1vs1.', icon: 'futbol-o', action: () => setShowFingerSoccer(true) },
+            { key: 'smash', name: 'Smash or Pass 🔥', description: 'Torneo de elecciones con famosos.', icon: 'heart', action: () => setShowSmashOrPass(true) },
         ];
 
-        const selected = minigames[Math.floor(Math.random() * minigames.length)];
+        // Weighted Selection Logic
+        let totalWeight = 0;
+        const weightedPool = minigames.map(game => {
+            const count = minigameCounts[game.key] || 0;
+            // Weight formula: 1 / (count + 1)
+            // Example: 0 plays -> 1, 1 play -> 0.5, 2 plays -> 0.33
+            const weight = 1 / (count + 1);
+            totalWeight += weight;
+            return { ...game, weight };
+        });
+
+        let randomValue = Math.random() * totalWeight;
+        let selected = weightedPool[0];
+
+        for (const game of weightedPool) {
+            randomValue -= game.weight;
+            if (randomValue <= 0) {
+                selected = game;
+                break;
+            }
+        }
 
         setPendingMinigame({
             key: selected.key,
@@ -492,8 +519,13 @@ export default function GameScreen() {
             description: selected.description,
             icon: selected.icon,
             onPlay: () => {
-                setPendingMinigame(null); // CLEAR THE INTRO CARD
-                selected.action(); // Open the minigame modal
+                // Update history count
+                setMinigameCounts(prev => ({
+                    ...prev,
+                    [selected.key]: (prev[selected.key] || 0) + 1
+                }));
+                setPendingMinigame(null);
+                selected.action();
             }
         });
     };
@@ -566,6 +598,8 @@ export default function GameScreen() {
         if (effect === 'minigame_wire') { setTimeout(() => setShowWireCut(true), 500); return; }
         if (effect === 'minigame_shakeit') { setTimeout(() => setShowShakeIt(true), 500); return; }
         if (effect === 'minigame_finger') { setTimeout(() => setShowFingerRoulette(true), 500); return; }
+        if (effect === 'minigame_soccer') { setTimeout(() => setShowFingerSoccer(true), 500); return; }
+        if (effect === 'minigame_smash') { setTimeout(() => setShowSmashOrPass(true), 500); return; }
 
         // Arcade Mode Random Exception
         if (isArcadeMode && !effect) {
@@ -1397,7 +1431,7 @@ export default function GameScreen() {
                                     style={[styles.button, { backgroundColor: colors.pink }]}
                                     onPress={() => handleChoice('yes')}
                                 >
-                                    <Text style={styles.buttonText}>SÍ / HECHO</Text>
+                                    <Text style={styles.buttonText} numberOfLines={1} adjustsFontSizeToFit>SÍ / HECHO</Text>
                                 </TouchableOpacity>
                             </>
                         ) : (
@@ -1408,7 +1442,7 @@ export default function GameScreen() {
                                     style={[styles.button, { backgroundColor: colors.orange, marginRight: 10 }]}
                                     onPress={handleChallengeFail}
                                 >
-                                    <Text style={styles.buttonText}>FAIL</Text>
+                                    <Text style={styles.buttonText} numberOfLines={1} adjustsFontSizeToFit>FALLÉ</Text>
                                 </TouchableOpacity>
 
                                 {/* Button 1: SUCCESS / NEXT */}
@@ -1416,7 +1450,7 @@ export default function GameScreen() {
                                     style={[styles.button, { backgroundColor: isRouletteMode ? colors.purple : colors.pink }]}
                                     onPress={nextTurn}
                                 >
-                                    <Text style={styles.buttonText}>
+                                    <Text style={styles.buttonText} numberOfLines={1} adjustsFontSizeToFit>
                                         {isRouletteMode ? '🎲 GIRAR' : currentCard.mode === 'rule' ? 'ACEPTO' : 'HECHO'}
                                     </Text>
                                 </TouchableOpacity>
@@ -1595,6 +1629,7 @@ export default function GameScreen() {
 
             <BrickBreaker
                 visible={showBrickBreaker}
+                currentPlayer={currentPlayer}
                 onClose={(success) => {
                     setShowBrickBreaker(false);
                     if (success) {
@@ -1612,6 +1647,7 @@ export default function GameScreen() {
 
             <FlappyDrink
                 visible={showFlappyDrink}
+                currentPlayer={currentPlayer}
                 onClose={(success) => {
                     setShowFlappyDrink(false);
                     if (success) {
@@ -1633,6 +1669,7 @@ export default function GameScreen() {
 
             <FastTapper
                 visible={showFastTapper}
+                currentPlayer={currentPlayer}
                 onClose={(success) => {
                     setShowFastTapper(false);
                     if (success) {
@@ -1663,6 +1700,7 @@ export default function GameScreen() {
 
             <ReflexDuel
                 visible={showReflexDuel}
+                currentPlayer={currentPlayer}
                 onClose={(success) => {
                     setShowReflexDuel(false);
                     if (success) {
@@ -1737,6 +1775,7 @@ export default function GameScreen() {
 
             <PrecisionSniper
                 visible={showPrecisionSniper}
+                currentPlayer={currentPlayer}
                 onClose={(success) => {
                     setShowPrecisionSniper(false);
                     if (success) {
@@ -1784,6 +1823,25 @@ export default function GameScreen() {
                 visible={showFingerRoulette}
                 onClose={() => {
                     setShowFingerRoulette(false);
+                    nextTurn();
+                }}
+                colors={colors}
+            />
+
+            <FingerSoccer
+                visible={showFingerSoccer}
+                currentPlayer={currentPlayer}
+                onClose={(success) => {
+                    setShowFingerSoccer(false);
+                    nextTurn();
+                }}
+                colors={colors}
+            />
+
+            <SmashOrPass
+                visible={showSmashOrPass}
+                onClose={(success) => {
+                    setShowSmashOrPass(false);
                     nextTurn();
                 }}
                 colors={colors}

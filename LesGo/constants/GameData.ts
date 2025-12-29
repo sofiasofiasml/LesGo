@@ -6,7 +6,7 @@ export interface Card {
     drinkTrigger?: 'yes' | 'no' | 'always' | 'none';
     drinkAction?: string; // e.g. "Bebe 2 tragos"
     points?: number; // Points awarded for this card (default 1)
-    specialEffect?: 'double' | 'reverse' | 'skip' | 'steal' | 'bonus' | 'gift' | 'bomb' | 'star' | 'roulette' | 'minigame_brick' | 'minigame_flappy' | 'minigame_roulette' | 'minigame_tapper' | 'minigame_memory' | 'minigame_reflex' | 'minigame_stop' | 'minigame_box' | 'minigame_highlow' | 'minigame_potato' | 'minigame_sniper' | 'minigame_wire' | 'minigame_shakeit' | 'minigame_finger'; // Special game mechanics
+    specialEffect?: 'double' | 'reverse' | 'skip' | 'steal' | 'bonus' | 'gift' | 'bomb' | 'star' | 'roulette' | 'minigame_brick' | 'minigame_flappy' | 'minigame_roulette' | 'minigame_tapper' | 'minigame_memory' | 'minigame_reflex' | 'minigame_stop' | 'minigame_box' | 'minigame_highlow' | 'minigame_potato' | 'minigame_sniper' | 'minigame_wire' | 'minigame_shakeit' | 'minigame_finger' | 'minigame_soccer' | 'minigame_smash'; // Special game mechanics
     category?: 'romantic' | 'spicy' | 'fun' | 'general';
     intensity?: 'soft' | 'medium' | 'spicy';
 }
@@ -1709,10 +1709,10 @@ export const GAME_CARDS: Card[] = [
     },
     {
         id: 'cc15',
-        text: '🔥 CONFESIÓN ANÓNIMA (FAKE). Escribe una nota en el móvil y pásalo. Alguien la lee. Tenéis que adivinar de quién es (aunque sea inventada).',
+        text: 'Di una confesión. Votemos y la minoría bebe',
         type: 'challenge',
         mode: 'statement',
-        drinkTrigger: 'none',
+        drinkTrigger: 'yes',
         category: 'spicy',
         intensity: 'medium',
         points: 3

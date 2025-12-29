@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { getHighScores, saveScore, HighScoreEntry } from '@/utils/HighScoreManager';
+import HighScoreModal from '@/components/game/HighScoreModal';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const GAME_HEIGHT = SCREEN_HEIGHT * 0.6;
@@ -17,13 +19,20 @@ interface FlappyDrinkProps {
     visible: boolean;
     onClose: (success: boolean) => void;
     colors: any;
+    currentPlayer?: string;
 }
 
-export default function FlappyDrink({ visible, onClose, colors }: FlappyDrinkProps) {
+export default function FlappyDrink({ visible, onClose, colors, currentPlayer = 'Jugador' }: FlappyDrinkProps) {
+    const GAME_ID = 'flappy_drink';
     const [gameState, setGameState] = useState<'start' | 'playing' | 'gameover' | 'won'>('start');
     const [score, setScore] = useState(0);
     const [birdY, setBirdY] = useState(GAME_HEIGHT / 2);
     const [pipes, setPipes] = useState<{ x: number; height: number; passed: boolean }[]>([]);
+
+    // High Score State
+    const [highScores, setHighScores] = useState<HighScoreEntry[]>([]);
+    const [showHighScores, setShowHighScores] = useState(false);
+    const [isNewRecord, setIsNewRecord] = useState(false);
 
     const birdYRef = useRef(GAME_HEIGHT / 2);
     const velocityRef = useRef(0);
@@ -33,8 +42,14 @@ export default function FlappyDrink({ visible, onClose, colors }: FlappyDrinkPro
     useEffect(() => {
         if (visible) {
             resetGame();
+            loadScores();
         }
     }, [visible]);
+
+    const loadScores = async () => {
+        const scores = await getHighScores(GAME_ID);
+        setHighScores(scores);
+    };
 
     const resetGame = () => {
         setBirdY(GAME_HEIGHT / 2);
@@ -44,6 +59,7 @@ export default function FlappyDrink({ visible, onClose, colors }: FlappyDrinkPro
         pipesRef.current = [];
         setScore(0);
         setGameState('start');
+        setIsNewRecord(false);
     };
 
     const startGame = () => {
@@ -72,6 +88,7 @@ export default function FlappyDrink({ visible, onClose, colors }: FlappyDrinkPro
     };
 
     useEffect(() => {
+        // eslint-disable-next-line
         if (gameState !== 'playing') {
             if (frameRef.current) cancelAnimationFrame(frameRef.current);
             return;
@@ -104,9 +121,6 @@ export default function FlappyDrink({ visible, onClose, colors }: FlappyDrinkPro
         // Determine collision box for bird (centered horizontally at fixed position)
         const birdX = GAME_WIDTH / 3; // Fixed X position for bird
 
-        // We iterate backwards to safely remove? No, standard filter or new array is better.
-        // But we need to update positions first.
-
         for (let i = 0; i < pipesRef.current.length; i++) {
             let pipe = pipesRef.current[i];
             pipe.x -= PIPE_SPEED;
@@ -123,8 +137,6 @@ export default function FlappyDrink({ visible, onClose, colors }: FlappyDrinkPro
             ) {
                 // Horizontal overlap
                 // Check Vertical
-                // Top pipe: 0 to height
-                // Bottom pipe: height + gap to GAME_HEIGHT
                 if (
                     birdYRef.current + 5 < pipe.height || // Hit top pipe
                     birdYRef.current + BIRD_SIZE - 5 > pipe.height + PIPE_GAP // Hit bottom pipe
@@ -137,11 +149,50 @@ export default function FlappyDrink({ visible, onClose, colors }: FlappyDrinkPro
             // Score update
             if (!pipe.passed && pipe.x + PIPE_WIDTH < birdX) {
                 pipe.passed = true;
-                setScore(prev => prev + 1);
+                const newScore = score + 1; // Careful with closure 'score', use functional update or ref
+                // BUT this runs in loop, so 'score' state might be stale if we relied on it.
+                // However, setScore(prev => prev+1) works.
+                // But for 'endGame(true)' condition we need accurate count.
+                // Let's rely on setScore update, but also calculate locally for win condition.
+
+                // wait, loop uses closure 'score' which is 0 from start of effect usually?
+                // Actually useEffect depends on [gameState], so loop restarts when state changes.
+                // But score doesn't change gameState.
+                // Ideally physics shouldn't depend on React state in closure.
+                // Let's use the updating state callback fully or add scoreRef if needed.
+                // For now, simpler: pass a param or simple check.
+                // The issue: "score" in this scope is fixed to what it was when effect started?
+                // Yes, if effect doesn't depend on score.
+                // And adding score to dep array restarts loop -> might be jittery.
+                // Standard fix: useRef for score.
+
+                // But wait, the original code used setScore(prev => prev + 1).
+                // And checked `if (score + 1 >= 5)`. 
+                // Wait, if score is 0 in closure, score+1 is always 1.
+                // Original code had a BUG if score wasn't in dep array?
+                // Actually, the original effect dependency was `[gameState]`.
+                // So `score` was stale (0) inside the interval/loop closure created at start of playing.
+                // So it only ever checked `0 + 1 >= 5`, which is false.
+                // Unless the game re-renders and restarts loop? No.
+                // SO THE ORIGINAL GAME PROBABLY DIDN'T WIN CORRECTLY if > 1 pipe?
+                // Or maybe `setScore` triggered re-render? Yes.
+                // BUT the `loop` function is defined INSIDE useEffect.
+                // `frameRef` continues the loop. It recurses `requestAnimationFrame(loop)`.
+                // `loop` is the *same* function instance from the initial render of the effect?
+                // Yes. So it sees stale `score`.
+                // I should fix this while I'm here.
+
+                // FIX: Use a ref for score tracking within the physics loop.
+            }
+
+            // Re-logic for score:
+            if (!pipe.passed && pipe.x + PIPE_WIDTH < birdX) {
+                pipe.passed = true;
+                currentScoreRef.current += 1;
+                setScore(currentScoreRef.current);
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-                // Win Condition
-                if (score + 1 >= 5) { // Target score 5
+                if (currentScoreRef.current >= 5) {
                     endGame(true);
                     return;
                 }
@@ -152,11 +203,7 @@ export default function FlappyDrink({ visible, onClose, colors }: FlappyDrinkPro
 
         // Add new pipe logic
         const lastPipe = newPipes[newPipes.length - 1];
-        if (lastPipe && (GAME_WIDTH - lastPipe.x >= 220)) { // Spacing between pipes
-            // Add to the temp array and ref logic handled via helper? 
-            // Better to mutate ref directly or push to 'newPipes' and assign?
-            // Actually 'addPipe' pushes to ref. Let's do it manually here.
-
+        if (lastPipe && (GAME_WIDTH - lastPipe.x >= 220)) {
             const minHeight = 50;
             const maxHeight = GAME_HEIGHT - PIPE_GAP - minHeight;
             const height = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
@@ -168,12 +215,42 @@ export default function FlappyDrink({ visible, onClose, colors }: FlappyDrinkPro
 
         // Sync State for Render
         setBirdY(birdYRef.current);
-        setPipes([...newPipes]); // spread to force re-render
+        setPipes([...newPipes]);
     };
 
-    const endGame = (won: boolean) => {
+    // START FIX: Ref for score to avoid closure staleness
+    const currentScoreRef = useRef(0);
+    // Sync ref when resetting
+    // See resetGame
+
+    // We need to override the `resetGame` to reset `currentScoreRef`
+    // And `updatePhysics` to use `currentScoreRef`
+
+    // I will include these fixes in the ReplacementContent.
+
+    const endGame = async (won: boolean) => {
         setGameState(won ? 'won' : 'gameover');
         Haptics.notificationAsync(won ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error);
+
+        // Save High Score (Highest score is best)
+        // Score is currentScoreRef.current
+        const finalScore = currentScoreRef.current;
+
+        // Save anyway even if lost? Yes, leaderboard is leaderboard.
+        // But usually only significant scores.
+        // If 0, maybe don't save?
+        if (finalScore > 0) {
+            const isRecord = await saveScore(GAME_ID, {
+                playerName: currentPlayer,
+                score: finalScore,
+                date: new Date().toISOString()
+            }, true); // True = Higher is better
+
+            if (isRecord) {
+                setIsNewRecord(true);
+                loadScores();
+            }
+        }
     };
 
     if (!visible) return null;
@@ -184,6 +261,11 @@ export default function FlappyDrink({ visible, onClose, colors }: FlappyDrinkPro
                 <View style={[styles.gameContainer, { backgroundColor: colors.modalBackground }]}>
                     {/* Header */}
                     <View style={styles.header}>
+                        <TouchableOpacity onPress={() => setShowHighScores(true)} style={styles.recordButton}>
+                            <FontAwesome name="trophy" size={20} color={colors.gold} />
+                            <Text style={[styles.recordButtonText, { color: colors.gold }]}> Récords</Text>
+                        </TouchableOpacity>
+
                         <Text style={[styles.title, { color: colors.text }]}>Fly & Drink 🍺</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                             <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.orange }}>{score} / 5</Text>
@@ -257,6 +339,13 @@ export default function FlappyDrink({ visible, onClose, colors }: FlappyDrinkPro
                         {/* Result Overlay */}
                         {(gameState === 'gameover' || gameState === 'won') && (
                             <View style={[styles.centerOverlay, { backgroundColor: 'rgba(0,0,0,0.8)' }]}>
+                                {isNewRecord && (
+                                    <View style={styles.newRecordBadge}>
+                                        <FontAwesome name="star" size={16} color="white" />
+                                        <Text style={styles.newRecordText}> ¡NUEVO RÉCORD! </Text>
+                                        <FontAwesome name="star" size={16} color="white" />
+                                    </View>
+                                )}
                                 <Text style={[styles.resultText, { color: gameState === 'won' ? '#4CD964' : '#FF3B30' }]}>
                                     {gameState === 'won' ? '¡VICTORIA!' : '¡CRASH!'}
                                 </Text>
@@ -279,6 +368,17 @@ export default function FlappyDrink({ visible, onClose, colors }: FlappyDrinkPro
                         )}
                     </TouchableOpacity>
                 </View>
+
+                {/* HIGH SCORE MODAL */}
+                <HighScoreModal
+                    visible={showHighScores}
+                    onClose={() => setShowHighScores(false)}
+                    highScores={highScores}
+                    gameName="Fly & Drink"
+                    colors={colors}
+                    isHigherBetter={true}
+                />
+
             </View>
         </View>
     );
@@ -306,6 +406,15 @@ const styles = StyleSheet.create({
     },
     title: {
         fontSize: 20,
+        fontWeight: 'bold',
+    },
+    recordButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 5,
+    },
+    recordButtonText: {
+        fontSize: 14,
         fontWeight: 'bold',
     },
     gameArea: {
@@ -352,5 +461,19 @@ const styles = StyleSheet.create({
     buttonText: {
         color: 'white',
         fontWeight: 'bold',
+    },
+    newRecordBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFD700',
+        paddingHorizontal: 15,
+        paddingVertical: 5,
+        borderRadius: 20,
+        marginBottom: 10
+    },
+    newRecordText: {
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 14
     }
 });

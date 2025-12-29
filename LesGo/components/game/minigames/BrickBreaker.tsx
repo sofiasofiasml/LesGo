@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Dimensions, TouchableOpacity, PanResponder } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { getHighScores, saveScore, HighScoreEntry } from '@/utils/HighScoreManager';
+import HighScoreModal from '@/components/game/HighScoreModal';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const GAME_HEIGHT = SCREEN_HEIGHT * 0.6;
@@ -19,14 +21,25 @@ interface BrickBreakerProps {
     visible: boolean;
     onClose: (success: boolean) => void;
     colors: any;
+    currentPlayer?: string;
 }
 
-export default function BrickBreaker({ visible, onClose, colors }: BrickBreakerProps) {
+export default function BrickBreaker({ visible, onClose, colors, currentPlayer = 'Jugador' }: BrickBreakerProps) {
+    const GAME_ID = 'brick_breaker';
     const [gameState, setGameState] = useState<'start' | 'playing' | 'gameover' | 'won'>('start');
     const [score, setScore] = useState(0);
     const [paddleX, setPaddleX] = useState((GAME_WIDTH - PADDLE_WIDTH) / 2);
     const [ball, setBall] = useState({ x: GAME_WIDTH / 2, y: GAME_HEIGHT - 50, dx: 3, dy: -3 });
     const [bricks, setBricks] = useState<{ id: string; x: number; y: number; active: boolean }[]>([]);
+
+    // Timer and Score State
+    const [startTime, setStartTime] = useState<number>(0);
+    const [finishTime, setFinishTime] = useState<number>(0);
+
+    // High Score State
+    const [highScores, setHighScores] = useState<HighScoreEntry[]>([]);
+    const [showHighScores, setShowHighScores] = useState(false);
+    const [isNewRecord, setIsNewRecord] = useState(false);
 
     const frameRef = useRef<number | null>(null);
     const ballRef = useRef(ball);
@@ -36,8 +49,14 @@ export default function BrickBreaker({ visible, onClose, colors }: BrickBreakerP
     useEffect(() => {
         if (visible) {
             resetGame();
+            loadScores();
         }
     }, [visible]);
+
+    const loadScores = async () => {
+        const scores = await getHighScores(GAME_ID);
+        setHighScores(scores);
+    };
 
     const resetGame = () => {
         const newBricks = [];
@@ -58,10 +77,18 @@ export default function BrickBreaker({ visible, onClose, colors }: BrickBreakerP
         paddleRef.current = (GAME_WIDTH - PADDLE_WIDTH) / 2;
         setScore(0);
         setGameState('start');
+        setIsNewRecord(false);
+        setFinishTime(0);
+    };
+
+    const startGame = () => {
+        setGameState('playing');
+        setStartTime(Date.now());
     };
 
     // Game Loop
     useEffect(() => {
+        // eslint-disable-next-line
         if (gameState !== 'playing') {
             if (frameRef.current) cancelAnimationFrame(frameRef.current);
             return;
@@ -119,7 +146,6 @@ export default function BrickBreaker({ visible, onClose, colors }: BrickBreakerP
         }
 
         // Brick Collision
-        let hitBrick = false;
         // Simple optimization: check only if ball is in upper half
         if (y < GAME_HEIGHT / 2) {
             // We need to update state, so we work with current bricks from ref implementation or state?
@@ -128,6 +154,7 @@ export default function BrickBreaker({ visible, onClose, colors }: BrickBreakerP
             // Use functional update to get fresh bricks
             setBricks(prevBricks => {
                 let collisionFound = false;
+                let brickHit = false;
                 const nextBricks = prevBricks.map(brick => {
                     if (!brick.active || collisionFound) return brick;
 
@@ -138,29 +165,80 @@ export default function BrickBreaker({ visible, onClose, colors }: BrickBreakerP
                         y < brick.y + BRICK_HEIGHT
                     ) {
                         collisionFound = true;
-                        dy = -dy; // Simple bounce
-                        hitBrick = true;
+                        brickHit = true;
                         return { ...brick, active: false };
                     }
                     return brick;
                 });
 
                 if (collisionFound) {
-                    ballRef.current.dy = dy; // Update ref direction immediately
+                    ballRef.current.dy = -ballRef.current.dy; // Bounce
+                    // Update local dy too for next loop
+                    dy = ballRef.current.dy;
+
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     // Check win condition
                     if (nextBricks.every(b => !b.active)) {
+                        // We can't call handleWin directly here comfortably inside setState
+                        // We can set a flag or use useEffect on bricks?
+                        // Better: use setTimeout to break out of render cycle or just check outside.
+                        // Or simple:
                         setGameState('won');
-                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        // We need to capture time here.
+                        // handleWin logic inline:
+                        const endTime = Date.now();
+                        const duration = (endTime - startTime) / 1000;
+
+                        // We can't await here easily.
+                        // Tricky. Let's set a state 'winTriggered' or just call helper
+                        // But helper uses state variables which might be stale?
+                        // No, params are passed.
+                        // Just calling function is fine IF it doesn't depend on stale state.
+
+                        // Actually, we should finish the loop first.
                     }
                 }
                 return nextBricks;
             });
+
+            // Re-check win condition outside setBricks? 
+            // The setBricks is async. 
+            // Let's use an Effect for win condition on bricks change.
         }
 
         // Update Ball state
         ballRef.current = { x, y, dx, dy };
         setBall({ x, y, dx, dy });
+    };
+
+    // Effect to check win
+    useEffect(() => {
+        if (gameState === 'playing' && bricks.length > 0 && bricks.every(b => !b.active)) {
+            handleWin();
+        }
+    }, [bricks, gameState]);
+
+    const handleWin = async () => {
+        const endTime = Date.now();
+        // Prevent double trigger if Effect runs multiple times?
+        if (finishTime > 0) return;
+
+        const duration = (endTime - startTime) / 1000;
+        setFinishTime(parseFloat(duration.toFixed(2)));
+        setGameState('won');
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+        // Save High Score (Time taken, lower is better)
+        const isRecord = await saveScore(GAME_ID, {
+            playerName: currentPlayer,
+            score: parseFloat(duration.toFixed(2)),
+            date: new Date().toISOString()
+        }, false); // False = Lower is better
+
+        if (isRecord) {
+            setIsNewRecord(true);
+            loadScores();
+        }
     };
 
     const panResponder = useRef(
@@ -182,6 +260,11 @@ export default function BrickBreaker({ visible, onClose, colors }: BrickBreakerP
                 <View style={[styles.gameContainer, { backgroundColor: colors.modalBackground }]}>
                     {/* Header */}
                     <View style={styles.header}>
+                        <TouchableOpacity onPress={() => setShowHighScores(true)} style={styles.recordButton}>
+                            <FontAwesome name="trophy" size={20} color={colors.gold} />
+                            <Text style={[styles.recordButtonText, { color: colors.gold }]}> Récords</Text>
+                        </TouchableOpacity>
+
                         <Text style={[styles.title, { color: colors.text }]}>Rompe-Ladrillos</Text>
                         <TouchableOpacity onPress={() => onClose(gameState === 'won')}>
                             <FontAwesome name="close" size={24} color={colors.text} />
@@ -243,7 +326,7 @@ export default function BrickBreaker({ visible, onClose, colors }: BrickBreakerP
                         {gameState === 'start' && (
                             <TouchableOpacity
                                 style={styles.centerOverlay}
-                                onPress={() => setGameState('playing')}
+                                onPress={startGame}
                             >
                                 <Text style={styles.startText}>TOCA PARA EMPEZAR</Text>
                             </TouchableOpacity>
@@ -252,11 +335,20 @@ export default function BrickBreaker({ visible, onClose, colors }: BrickBreakerP
                         {/* Result Overlay */}
                         {(gameState === 'gameover' || gameState === 'won') && (
                             <View style={[styles.centerOverlay, { backgroundColor: 'rgba(0,0,0,0.8)' }]}>
+                                {isNewRecord && (
+                                    <View style={styles.newRecordBadge}>
+                                        <FontAwesome name="star" size={16} color="white" />
+                                        <Text style={styles.newRecordText}> ¡NUEVO RÉCORD! </Text>
+                                        <FontAwesome name="star" size={16} color="white" />
+                                    </View>
+                                )}
                                 <Text style={[styles.resultText, { color: gameState === 'won' ? '#4CD964' : '#FF3B30' }]}>
                                     {gameState === 'won' ? '¡VICTORIA!' : '¡HAS PERDIDO!'}
                                 </Text>
                                 <Text style={styles.subResultText}>
-                                    {gameState === 'won' ? 'Repartes 5 tragos' : '¡Te toca BEBER!'}
+                                    {gameState === 'won'
+                                        ? `Tiempo: ${finishTime}s\nRepartes 5 tragos`
+                                        : '¡Te toca BEBER!'}
                                 </Text>
                                 <TouchableOpacity
                                     style={[styles.button, { backgroundColor: colors.purple }]}
@@ -276,6 +368,16 @@ export default function BrickBreaker({ visible, onClose, colors }: BrickBreakerP
 
                     <Text style={{ color: colors.text, marginTop: 10, opacity: 0.6 }}>Desliza para mover la barra</Text>
                 </View>
+
+                {/* HIGH SCORE MODAL */}
+                <HighScoreModal
+                    visible={showHighScores}
+                    onClose={() => setShowHighScores(false)}
+                    highScores={highScores}
+                    gameName="Brick Breaker"
+                    colors={colors}
+                    isHigherBetter={false} // Lower time is better
+                />
             </View>
         </View>
     );
@@ -297,11 +399,21 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
+        alignItems: 'center',
         width: '100%',
         marginBottom: 20,
     },
     title: {
         fontSize: 20,
+        fontWeight: 'bold',
+    },
+    recordButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 5,
+    },
+    recordButtonText: {
+        fontSize: 14,
         fontWeight: 'bold',
     },
     gameArea: {
@@ -346,5 +458,19 @@ const styles = StyleSheet.create({
     buttonText: {
         color: 'white',
         fontWeight: 'bold',
+    },
+    newRecordBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFD700',
+        paddingHorizontal: 15,
+        paddingVertical: 5,
+        borderRadius: 20,
+        marginBottom: 10
+    },
+    newRecordText: {
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 14
     }
 });
