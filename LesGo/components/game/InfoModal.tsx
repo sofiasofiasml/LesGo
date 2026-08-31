@@ -25,7 +25,7 @@ export default function InfoModal({ visible, onClose, colors, targetScore }: Inf
                     </View>
                     <ScrollView style={{ width: '100%', marginTop: 15 }} showsVerticalScrollIndicator={true}>
                         <Text style={[styles.infoText, { color: colors.text }]}>
-                            <Text style={{ fontWeight: 'bold', fontSize: 18 }}>LesGo - Yo Nunca (Versión Bollera)</Text>
+                            <Text style={{ fontWeight: 'bold', fontSize: 18 }}>Lesbo Party - Yo Nunca (Versión Bollera)</Text>
                         </Text>
 
                         <Text style={[styles.infoText, { color: colors.text, marginTop: 15 }]}>
@@ -68,6 +68,8 @@ export default function InfoModal({ visible, onClose, colors, targetScore }: Inf
                     <TouchableOpacity
                         style={[styles.modalButton, { backgroundColor: colors.pink, marginTop: 15 }]}
                         onPress={onClose}
+                        accessibilityRole="button"
+                        accessibilityLabel="Cerrar información del juego"
                     >
                         <Text style={styles.buttonText}>Cerrar</Text>
                     </TouchableOpacity>
@@ -121,7 +123,7 @@ const styles = StyleSheet.create({
     },
     modalButton: {
         borderRadius: 20,
-        padding: 10,
+        paddingVertical: 14,
         elevation: 2,
         width: '100%',
         alignItems: 'center',

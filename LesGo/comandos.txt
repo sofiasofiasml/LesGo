@@ -1,0 +1,123 @@
+Tu configuración actual:
+
+development: Crea development build (para desarrollo)
+preview: Crea build interno (por defecto APK)
+production: Crea build de producción (por defecto AAB)
+
+Para asegurar que genere APK, modifica el eas.json:
+json{
+  "cli": {
+    "version": ">= 16.15.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "android": {
+        "buildType": "apk"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
+Comandos para generar APK:
+bash# Para APK de prueba/preview
+eas build --platform android --profile preview
+
+# Para APK de producción (.aab)
+eas build --platform android --profile production
+
+
+#para ejecutar apk 
+npx expo start --tunnel
+#y despues "a" para ejecutar android 
+
+
+# 1. Verificar que ADB funciona
+adb devices
+
+# 2. Hacer port forwarding
+adb reverse tcp:3000 tcp:3000
+
+# 3. Verificar que funciona
+adb reverse --list
+
+
+#sevridor local instalar el ngrok y en una terminal llamar esta ruta, abrir la terminal de node server 
+
+ngrok config add-authtoken 30ahjtjpa9VdYU9BAWRun5RlEDX_6bSYntdcDbQruU4mGw5tA
+
+ngrok http 3000
+
+#.env la ruta de EXPO_PUBLIC_API_URL=https://2cc6bf924f2f.ngrok-free.app/api o la de servidor online esto se cambia 
+
+# Cerrar Expo y hacer limpieza completa:
+npx expo start --clear --reset-cache --tunnel
+
+eas build -p android --profile preview --clear-cache 
+
+npx expo start --tunnel --clear
+
+
+----
+
+Dependencias instaladas
+react-native-purchases
+react-native-google-mobile-ads
+Lo que debes configurar ahora (obligatorio para cobrar)
+En RevenueCat:
+
+Crear entitlements: pro_minigames, pro_questions, remove_ads
+
+Asociar productos:
+
+lesgo_pro_minigames
+
+lesgo_pro_questions
+
+lesgo_remove_ads
+
+Copiar API keys iOS/Android
+
+En Google Play Console y App Store Connect:
+
+Crear esos 3 productos como no consumibles
+
+Configurar perfil de pagos, impuestos y cuenta bancaria
+
+Publicar en testing interno/cerrado para pruebas
+
+En tu app:
+
+Rellenar keys/ids reales en app.json dentro de expo.extra.revenuecat y expo.extra.ads
+
+Hacer build con EAS (Expo Go no sirve para compras/ads nativos)
+
+Nota importante
+El dinero sí llega al desarrollador, pero pasa por Google/Apple (ellos cobran comisión y luego te liquidan).
+Tu compra “Quitar anuncios” ya está conectada en UI/lógica.
+
+
+
+
+Opción A — build en la nube (recomendada, no necesita Android Studio):
+
+
+eas build --platform android --profile development
+Cuando termine, te da un link/QR para instalar el APK en el móvil. Después:
+
+
+npx expo start --dev-client
+Y abrís la app que se instaló (no Expo Go).

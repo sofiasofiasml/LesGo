@@ -139,7 +139,7 @@ export default function ReflexDuel({ visible, onClose, colors, currentPlayer = '
                         onPress={handleTap}
                     >
                         {gameState === 'start' && (
-                            <Text style={styles.mainText}>TOCA PARA EMPEZAR</Text>
+                            <Text style={[styles.mainText, { color: colors.text }]}>TOCA PARA EMPEZAR</Text>
                         )}
                         {gameState === 'waiting' && (
                             <Text style={styles.mainText}>ESPERA... 🤫</Text>

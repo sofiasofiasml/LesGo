@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, Dimensions, Animated } from 'react-native';
+import HighScoreModal from '@/components/game/HighScoreModal';
+import { getHighScores, HighScoreEntry, saveScore } from '@/utils/HighScoreManager';
 import { FontAwesome } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { saveScore, getHighScores, HighScoreEntry } from '@/utils/HighScoreManager';
-import HighScoreModal from '@/components/game/HighScoreModal';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Dimensions, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -27,9 +27,10 @@ export default function FingerSoccer({ visible, onClose, colors, currentPlayer =
     // Game State
     const [scoreP1, setScoreP1] = useState(0); // Top Player
     const [scoreP2, setScoreP2] = useState(0); // Bottom Player (Current Player)
-    const [gameState, setGameState] = useState<'intro' | 'playing' | 'scored' | 'ended'>('intro');
+    const [gameState, setGameState] = useState<'intro' | 'serve' | 'playing' | 'scored' | 'ended'>('intro');
     const [winner, setWinner] = useState<string | null>(null);
     const [startTime, setStartTime] = useState<number>(0);
+    const [nextServeBy, setNextServeBy] = useState<'P1' | 'P2' | 'random'>('random');
 
     // High Scores
     const [isNewRecord, setIsNewRecord] = useState(false);
@@ -89,7 +90,16 @@ export default function FingerSoccer({ visible, onClose, colors, currentPlayer =
 
     const resetBall = () => {
         ballPos.current = { x: GAME_WIDTH / 2 - BALL_SIZE / 2, y: GAME_HEIGHT / 2 - BALL_SIZE / 2 };
-        const dirY = Math.random() > 0.5 ? 1 : -1;
+        ballVel.current = { x: 0, y: 0 };
+        setBallRenderIds(prev => prev + 1);
+    };
+
+    const launchBall = (serveBy: 'P1' | 'P2' | 'random' = 'random') => {
+        const dirY = serveBy === 'P1'
+            ? 1
+            : serveBy === 'P2'
+                ? -1
+                : (Math.random() > 0.5 ? 1 : -1);
         const dirX = (Math.random() - 0.5) * 1.5;
         // Moderate speed
         ballVel.current = { x: dirX * 6, y: dirY * 5 };
@@ -97,9 +107,19 @@ export default function FingerSoccer({ visible, onClose, colors, currentPlayer =
     };
 
     const startGame = () => {
-        setStartTime(Date.now());
-        setGameState('playing');
+        setStartTime(0);
+        setNextServeBy('random');
+        setGameState('serve');
         resetBall();
+    };
+
+    const handleServe = () => {
+        if (startTime === 0) {
+            setStartTime(Date.now());
+        }
+        launchBall(nextServeBy);
+        setGameState('playing');
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     };
 
     // GAME LOOP
@@ -164,22 +184,24 @@ export default function FingerSoccer({ visible, onClose, colors, currentPlayer =
             const newScore = scoreP1 + 1;
             setScoreP1(newScore);
             if (newScore >= WIN_SCORE) endGame('P1');
-            else promptNextRound();
+            else promptNextRound(1);
         } else {
             const newScore = scoreP2 + 1;
             setScoreP2(newScore);
             if (newScore >= WIN_SCORE) endGame('P2');
-            else promptNextRound();
+            else promptNextRound(2);
         }
     };
 
-    const promptNextRound = () => {
+    const promptNextRound = (scorer: 1 | 2) => {
         setGameState('scored');
         cancelAnimationFrame(requestRef.current!);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setTimeout(() => {
+            // Tras el gol, saca quien lo recibio.
+            setNextServeBy(scorer === 1 ? 'P2' : 'P1');
             resetBall();
-            setGameState('playing');
+            setGameState('serve');
         }, 1500);
     };
 
@@ -322,6 +344,15 @@ export default function FingerSoccer({ visible, onClose, colors, currentPlayer =
                             </View>
                         )}
 
+                        {gameState === 'serve' && (
+                            <View style={styles.centerMessage}>
+                                <TouchableOpacity style={[styles.startButton, { backgroundColor: colors.gold }]} onPress={handleServe}>
+                                    <Text style={styles.startText}>SACAR BALON</Text>
+                                    <Text style={styles.subStartText}>Pulsa para sacar y continuar</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+
                         {gameState === 'ended' && (
                             <View style={[styles.centerMessage, { backgroundColor: 'rgba(0,0,0,0.85)', padding: 20, borderRadius: 10 }]}>
                                 <Text style={[styles.winnerText, { color: colors.gold }]}>
@@ -338,16 +369,16 @@ export default function FingerSoccer({ visible, onClose, colors, currentPlayer =
                                 )}
 
                                 <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
-                                    <TouchableOpacity style={[styles.startButton, { backgroundColor: colors.pink, paddingHorizontal: 20 }]} onPress={startGame}>
-                                        <Text style={styles.startText}>REPETIR</Text>
+                                    <TouchableOpacity style={[styles.startButton, { backgroundColor: colors.pink, paddingHorizontal: 20 }]} onPress={() => onClose(winner === currentPlayer)}>
+                                        <Text style={styles.startText}>CONTINUAR</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity style={[styles.startButton, { backgroundColor: colors.purple, paddingHorizontal: 20 }]} onPress={() => setShowHighScores(true)}>
                                         <FontAwesome name="trophy" size={20} color="white" />
                                     </TouchableOpacity>
                                 </View>
 
-                                <TouchableOpacity style={{ marginTop: 15 }} onPress={() => onClose(true)}>
-                                    <Text style={{ color: 'white', textDecorationLine: 'underline' }}>Salir</Text>
+                                <TouchableOpacity style={styles.hiddenLinkBtn} onPress={startGame}>
+                                    <Text style={styles.hiddenLinkText}>Repetir</Text>
                                 </TouchableOpacity>
                             </View>
                         )}
@@ -484,5 +515,14 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: 10,
         right: 10
+    },
+    hiddenLinkBtn: {
+        marginTop: 12,
+    },
+    hiddenLinkText: {
+        color: 'white',
+        textDecorationLine: 'underline',
+        opacity: 0.7,
+        fontSize: 13,
     }
 });

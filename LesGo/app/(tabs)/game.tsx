@@ -1,32 +1,54 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, TouchableOpacity, Modal, useColorScheme, TextInput, ScrollView, Switch } from 'react-native';
 import { Text, View } from '@/components/Themed';
-import { GAME_CARDS, Card } from '@/constants/GameData';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Haptics from 'expo-haptics';
-import { Audio } from 'expo-av';
-import VictoryScreen from '@/components/game/VictoryScreen';
-import InfoModal from '@/components/game/InfoModal';
-import TimerModal from '@/components/game/TimerModal';
 import GameCard from '@/components/game/GameCard';
+import InfoModal from '@/components/game/InfoModal';
 import RouletteModal from '@/components/game/RouletteModal';
+import TimerModal from '@/components/game/TimerModal';
+import VictoryScreen from '@/components/game/VictoryScreen';
 import BrickBreaker from '@/components/game/minigames/BrickBreaker';
+import FastTapper from '@/components/game/minigames/FastTapper';
 import FlappyDrink from '@/components/game/minigames/FlappyDrink';
 import FortuneRoulette from '@/components/game/minigames/FortuneRoulette';
-import FastTapper from '@/components/game/minigames/FastTapper';
-import MemoryChallenge from '@/components/game/minigames/MemoryChallenge';
-import ReflexDuel from '@/components/game/minigames/ReflexDuel';
-import StopTheBus from '@/components/game/minigames/StopTheBus';
 import GiftBox from '@/components/game/minigames/GiftBox';
 import HighLow from '@/components/game/minigames/HighLow';
 import HotPotato from '@/components/game/minigames/HotPotato';
+import MemoryChallenge from '@/components/game/minigames/MemoryChallenge';
 import PrecisionSniper from '@/components/game/minigames/PrecisionSniper';
+import ReflexDuel from '@/components/game/minigames/ReflexDuel';
+import StopTheBus from '@/components/game/minigames/StopTheBus';
 import WireCut from '@/components/game/minigames/WireCut';
-import ShakeIt from '@/components/game/minigames/ShakeIt';
+import { Card, GAME_CARDS } from '@/constants/GameData';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Dimensions, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Switch, TextInput, TouchableOpacity, useColorScheme, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import FingerRoulette from '@/components/game/minigames/FingerRoulette';
 import FingerSoccer from '@/components/game/minigames/FingerSoccer';
-import SmashOrPass from '@/components/game/minigames/SmashOrPass';
+
+import BalanceChallenge from '@/components/game/minigames/BalanceChallenge';
+import ColorMatch from '@/components/game/minigames/ColorMatch';
+import DrunkPairs from '@/components/game/minigames/DrunkPairs';
+import HungryHippos from '@/components/game/minigames/HungryHippos';
+import MathSprint from '@/components/game/minigames/MathSprint';
+import TugOfWar from '@/components/game/minigames/TugOfWar';
+import { getBannerAdUnitId, isAdsConfigured, isExpoGo, isRewardedConfigured } from '@/utils/AdsConfig';
+import {
+    initializeAdsSdk,
+    isRewardedAdReady,
+    preloadInterstitialAd,
+    preloadRewardedAd,
+    showInterstitialAdIfLoaded,
+    showRewardedAdForReward
+} from '@/utils/AdsManager';
+import {
+    EntitlementSnapshot,
+    getRevenueCatEntitlements,
+    initializeRevenueCat,
+    purchaseEntitlement,
+    restoreRevenueCatPurchases
+} from '@/utils/RevenueCat';
 
 // Fisher-Yates Shuffle Algorithm
 const shuffleArray = (array: Card[]) => {
@@ -60,7 +82,83 @@ const playHaptic = (style: 'light' | 'medium' | 'heavy' = 'medium') => {
     }
 };
 
+const FREE_MINIGAME_KEYS = new Set([
+    'brick',
+    'tapper',
+    'memory',
+    'stop',
+    'highlow',
+    'potato',
+]);
+
+const PAID_MINIGAME_EFFECTS = new Set([
+    'minigame_flappy',
+    'minigame_roulette',
+    'minigame_reflex',
+    'minigame_box',
+    'minigame_sniper',
+    'minigame_wire',
+    'minigame_finger',
+    'minigame_soccer',
+    'minigame_tug',
+    'minigame_balance',
+    'minigame_pairs',
+    'minigame_hippo',
+    'minigame_color',
+    'minigame_math',
+]);
+
+const DEFAULT_ENTITLEMENTS: EntitlementSnapshot = {
+    minigames: false,
+    questions: false,
+    removeAds: false,
+};
+
+const INTERSTITIAL_FREQUENCY = 4;
+
+// Codigo secreto para desactivar anuncios sin pasar por compra (uso propio/admin).
+// Cambialo por el que quieras antes de publicar.
+const ADMIN_UNLOCK_CODE = 'lesgo-admin-2026';
+const ADMIN_UNLOCK_STORAGE_KEY = 'lesgo_admin_unlock_all';
+
 export default function GameScreen() {
+    const insets = useSafeAreaInsets();
+    const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+    const [drinkMessage, setDrinkMessage] = useState('¡BEBE!'); // Initial default
+    const isCompactScreen = screenHeight < 760;
+    const turnLabelSize = isCompactScreen ? 13 : 16;
+    const turnNameSize = Math.max(28, Math.min(42, screenWidth * (isCompactScreen ? 0.082 : 0.095)));
+    const turnNameLineHeight = turnNameSize + (isCompactScreen ? 5 : 8);
+    const scoreModalTitleSize = Math.max(20, Math.min(30, screenWidth * 0.066));
+    const scorePlayerNameSize = Math.max(14, Math.min(18, screenWidth * 0.044));
+    const scorePointsSize = Math.max(14, Math.min(20, screenWidth * 0.05));
+    const medalSize = Math.max(16, Math.min(20, screenWidth * 0.048));
+    const exitModalTitleSize = Math.max(20, Math.min(30, screenWidth * 0.065));
+    const exitModalTextSize = Math.max(14, Math.min(17, screenWidth * 0.043));
+    const exitButtonTextSize = Math.max(14, Math.min(18, screenWidth * 0.045));
+    const drinkMessageLength = drinkMessage?.length ?? 0;
+    const drinkBaseTitleSize = Math.max(26, Math.min(46, screenWidth * 0.1));
+    const drinkTitleScale = drinkMessageLength > 40 ? 0.64
+        : drinkMessageLength > 30 ? 0.74
+            : drinkMessageLength > 22 ? 0.84
+                : 1;
+    const drinkTitleSize = Math.max(20, Math.round(drinkBaseTitleSize * drinkTitleScale));
+    const drinkPlayerSize = Math.max(18, Math.min(24, screenWidth * 0.058));
+    const drinkButtonTextSize = Math.max(14, Math.min(18, screenWidth * 0.045));
+    const isVerySmallScreen = screenHeight < 700 || screenWidth < 360;
+    const drinkIconSize = Math.max(54, Math.min(80, Math.round(Math.min(screenWidth, screenHeight) * 0.14)));
+    const drinkModalMaxHeight = Math.min(Math.round(screenHeight * 0.75), 520);
+
+    const physicalScreenHeight = Dimensions.get('screen').height;
+    const bottomSystemArea = Math.max(0, physicalScreenHeight - screenHeight);
+    const hasAndroidNavButtons = Platform.OS === 'android' && bottomSystemArea >= 24;
+
+    const bottomInteractionPadding = hasAndroidNavButtons
+        ? Math.min(42, bottomSystemArea + 10)
+        : Math.max(2, insets.bottom > 0 ? insets.bottom - 4 : 2);
+
+    const buttonBottomMargin = hasAndroidNavButtons ? 10 : (isCompactScreen ? 4 : 6);
+
     const [gameState, setGameState] = useState<'config' | 'setup' | 'playing' | 'victory'>('setup');
     const [players, setPlayers] = useState<string[]>([]);
     const [newPlayerName, setNewPlayerName] = useState('');
@@ -69,7 +167,6 @@ export default function GameScreen() {
     const [deck, setDeck] = useState<Card[]>([]);
     const [currentCardIndex, setCurrentCardIndex] = useState(0);
     const [modalVisible, setModalVisible] = useState(false);
-    const [drinkMessage, setDrinkMessage] = useState('¡BEBE!'); // Initial default
 
     // Points system
     const [playerScores, setPlayerScores] = useState<Record<string, number>>({});
@@ -109,15 +206,106 @@ export default function GameScreen() {
     const [showHotPotato, setShowHotPotato] = useState(false);
     const [showPrecisionSniper, setShowPrecisionSniper] = useState(false);
     const [showWireCut, setShowWireCut] = useState(false);
-    const [showShakeIt, setShowShakeIt] = useState(false);
+
     const [showFingerRoulette, setShowFingerRoulette] = useState(false);
     const [showFingerSoccer, setShowFingerSoccer] = useState(false);
-    const [showSmashOrPass, setShowSmashOrPass] = useState(false);
+
+    const [showTugOfWar, setShowTugOfWar] = useState(false);
+    const [showBalanceChallenge, setShowBalanceChallenge] = useState(false);
+    const [showDrunkPairs, setShowDrunkPairs] = useState(false);
+
+    const [showHungryHippos, setShowHungryHippos] = useState(false);
     const [showGiftBox, setShowGiftBox] = useState(false);
+    const [showColorMatch, setShowColorMatch] = useState(false);
+    const [showMathSprint, setShowMathSprint] = useState(false);
     const [isArcadeMode, setIsArcadeMode] = useState(true);
     const [isMinigameOnlyMode, setIsMinigameOnlyMode] = useState(false);
+    const [entitlements, setEntitlements] = useState<EntitlementSnapshot>(DEFAULT_ENTITLEMENTS);
+    const [isIapLoading, setIsIapLoading] = useState(false);
+    const [isIapReady, setIsIapReady] = useState(false);
+    const [adminUnlockAll, setAdminUnlockAll] = useState(false);
+    const [adminCodeInput, setAdminCodeInput] = useState('');
+    const [showAdminCode, setShowAdminCode] = useState(false);
+    const [turnCountForAds, setTurnCountForAds] = useState(0);
+    const [isRewardedLoading, setIsRewardedLoading] = useState(false);
+    const [rewardedRenderTick, setRewardedRenderTick] = useState(0);
 
     const [minigameCounts, setMinigameCounts] = useState<Record<string, number>>({});
+
+    const hasMinigamesUnlocked = adminUnlockAll || entitlements.minigames;
+    const hasQuestionsUnlocked = adminUnlockAll || entitlements.questions;
+    const adsRemoved = adminUnlockAll || entitlements.removeAds;
+    const bannerAdUnitId = getBannerAdUnitId();
+    const canUseRewardedSkip = !adsRemoved && isRewardedConfigured() && isRewardedAdReady();
+
+    const renderBannerAd = () => {
+        if (adsRemoved || !isAdsConfigured() || Platform.OS === 'web' || isExpoGo()) {
+            return null;
+        }
+
+        try {
+            const mobileAds = require('react-native-google-mobile-ads');
+            const BannerAd = mobileAds.BannerAd;
+            const BannerAdSize = mobileAds.BannerAdSize;
+
+            if (!BannerAd || !BannerAdSize || !bannerAdUnitId) {
+                return null;
+            }
+
+            return (
+                <View style={{ width: '100%', alignItems: 'center', marginTop: 8, marginBottom: 6 }}>
+                    <BannerAd
+                        unitId={bannerAdUnitId}
+                        size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+                        requestOptions={{ requestNonPersonalizedAdsOnly: true }}
+                    />
+                </View>
+            );
+        } catch (error) {
+            return null;
+        }
+    };
+
+    const refreshEntitlements = async () => {
+        try {
+            const latest = await getRevenueCatEntitlements();
+            setEntitlements(latest);
+        } catch (error) {
+            console.error('Error refreshing entitlements:', error);
+        }
+    };
+
+    const handlePurchase = async (type: 'minigames' | 'questions' | 'removeAds') => {
+        setIsIapLoading(true);
+        try {
+            const result = await purchaseEntitlement(type);
+            setEntitlements(result.entitlements);
+
+            if (result.success) {
+                Alert.alert('Compra completada', 'Tu contenido premium ya esta desbloqueado.');
+            } else if (!result.cancelled) {
+                Alert.alert('No se pudo completar', result.message || 'La compra no pudo procesarse.');
+            }
+        } finally {
+            setIsIapLoading(false);
+        }
+    };
+
+    const handleRestorePurchases = async () => {
+        setIsIapLoading(true);
+        try {
+            const result = await restoreRevenueCatPurchases();
+            setEntitlements(result.entitlements);
+
+            if (result.success) {
+                Alert.alert('Compras restauradas', 'Se han restaurado tus desbloqueos.');
+            } else {
+                Alert.alert('No se pudo restaurar', result.message || 'Intentalo de nuevo en unos minutos.');
+            }
+        } finally {
+            setIsIapLoading(false);
+        }
+    };
 
     // Timer Effect
     useEffect(() => {
@@ -294,7 +482,69 @@ export default function GameScreen() {
     useEffect(() => {
         loadPlayersFromStorage();
         loadCustomCardsFromStorage();
+        AsyncStorage.getItem(ADMIN_UNLOCK_STORAGE_KEY).then((value) => {
+            if (value === 'true') {
+                setAdminUnlockAll(true);
+            }
+        });
     }, []);
+
+    const handleAdminCodeSubmit = async () => {
+        if (adminCodeInput.trim() !== ADMIN_UNLOCK_CODE) {
+            Alert.alert('Código incorrecto', 'Ese código no es válido.');
+            return;
+        }
+
+        setAdminUnlockAll(true);
+        setAdminCodeInput('');
+        await AsyncStorage.setItem(ADMIN_UNLOCK_STORAGE_KEY, 'true');
+        Alert.alert('Listo', 'Modo admin activado: minijuegos, preguntas y anuncios desbloqueados en este dispositivo.');
+    };
+
+    const handleAdminDeactivate = async () => {
+        setAdminUnlockAll(false);
+        await AsyncStorage.removeItem(ADMIN_UNLOCK_STORAGE_KEY);
+        Alert.alert('Listo', 'Modo admin desactivado.');
+    };
+
+    useEffect(() => {
+        const bootstrapIap = async () => {
+            const ready = await initializeRevenueCat();
+            setIsIapReady(ready);
+            if (ready) {
+                await refreshEntitlements();
+            }
+        };
+
+        bootstrapIap();
+    }, []);
+
+    useEffect(() => {
+        const bootstrapAds = async () => {
+            if (Platform.OS === 'web' || adsRemoved || !isAdsConfigured()) {
+                return;
+            }
+
+            await initializeAdsSdk();
+            preloadInterstitialAd();
+            preloadRewardedAd();
+        };
+
+        bootstrapAds();
+    }, [adsRemoved]);
+
+    useEffect(() => {
+        if (!modalVisible || adsRemoved || !isRewardedConfigured()) {
+            return;
+        }
+
+        preloadRewardedAd();
+        const interval = setInterval(() => {
+            setRewardedRenderTick((prev) => prev + 1);
+        }, 700);
+
+        return () => clearInterval(interval);
+    }, [modalVisible, adsRemoved]);
 
     const startGame = () => {
         if (players.length > 0) {
@@ -319,8 +569,11 @@ export default function GameScreen() {
                 return categoryMatch && intensityMatch && round1Match;
             });
 
+            const accessibleFilteredCards = applyQuestionAccess(filteredCards);
+
             // Ensure we have at least some cards
-            const deckToUse = filteredCards.length > 0 ? filteredCards : allCards.filter(c => !c.specialEffect);
+            const fallbackCards = applyQuestionAccess(allCards.filter(c => !c.specialEffect));
+            const deckToUse = accessibleFilteredCards.length > 0 ? accessibleFilteredCards : fallbackCards;
 
             setDeck(shuffleArray(deckToUse));
             setCurrentCardIndex(0);
@@ -328,6 +581,7 @@ export default function GameScreen() {
             setCurrentRound(1);
             setTargetScore(30);
             setUsedCardIds([]);
+            setTurnCountForAds(0);
 
             // Initialize scores
             const initialScores: Record<string, number> = {};
@@ -362,6 +616,7 @@ export default function GameScreen() {
         setTargetScore(30);
         setUsedCardIds([]);
         setPendingMinigame(null); // Clear pending minigame
+        setTurnCountForAds(0);
     };
 
     const handleExitClick = () => {
@@ -390,7 +645,7 @@ export default function GameScreen() {
         const selectedLevel = intensityLevels[selectedIntensity];
         const allCards = [...GAME_CARDS, ...customCards];
 
-        return allCards.filter(card => {
+        const filtered = allCards.filter(card => {
             const cardCategory = card.category || 'general';
             const cardIntensity = card.intensity || 'medium';
             const cardLevel = intensityLevels[cardIntensity] || 2;
@@ -401,6 +656,23 @@ export default function GameScreen() {
 
             return categoryMatch && intensityMatch && roundMatch;
         });
+
+        return applyQuestionAccess(filtered);
+    };
+
+    const applyQuestionAccess = (cards: Card[]) => {
+        if (hasQuestionsUnlocked) {
+            return cards;
+        }
+
+        const freeCategories = new Set(['general', 'fun']);
+        const filtered = cards.filter(card => freeCategories.has(card.category || 'general'));
+
+        if (filtered.length > 0) {
+            return filtered.slice(0, 40);
+        }
+
+        return cards.slice(0, 40);
     };
 
     const handleRouletteWinner = (winner: string) => {
@@ -485,15 +757,30 @@ export default function GameScreen() {
             { key: 'potato', name: 'La Bomba 💣', description: 'Pásalo rápido antes de que explote.', icon: 'bomb', action: () => setShowHotPotato(true) },
             { key: 'sniper', name: 'Francotirador 🎯', description: 'Para el tiempo EXACTAMENTE en el objetivo.', icon: 'crosshairs', action: () => setShowPrecisionSniper(true) },
             { key: 'wire', name: 'Corta Cables ✂️', description: 'Elige el cable correcto... si te atreves.', icon: 'scissors', action: () => setShowWireCut(true) },
-            { key: 'shake', name: 'El Batido 🥤', description: 'Agita el móvil con fuerza.', icon: 'mobile', action: () => setShowShakeIt(true) },
+
             { key: 'finger', name: 'Ruleta de Dedos 👆', description: 'Poned los dedos en la pantalla.', icon: 'hand-paper-o', action: () => setShowFingerRoulette(true) },
             { key: 'soccer', name: 'Finger Soccer ⚽', description: 'Partido de dedos 1vs1.', icon: 'futbol-o', action: () => setShowFingerSoccer(true) },
-            { key: 'smash', name: 'Smash or Pass 🔥', description: 'Torneo de elecciones con famosos.', icon: 'heart', action: () => setShowSmashOrPass(true) },
+
+            { key: 'tug', name: 'Guerra de Taps ⚔️', description: 'Machaca al rival.', icon: 'hand-rock-o', action: () => setShowTugOfWar(true) },
+            { key: 'balance', name: 'Equilibrista ⚖️', description: 'No dejes caer la bola.', icon: 'balance-scale', action: () => setShowBalanceChallenge(true) },
+            { key: 'pairs', name: 'Parejas 🃏', description: 'Encuentra las parejas.', icon: 'clone', action: () => setShowDrunkPairs(true) },
+
+            { key: 'hippo', name: 'Come Bolas 🦛', description: '¡A comer!', icon: 'paw', action: () => setShowHungryHippos(true) },
+            { key: 'color', name: 'Color Match 🌈', description: 'Toca el color correcto contra reloj.', icon: 'paint-brush', action: () => setShowColorMatch(true) },
+            { key: 'math', name: 'Math Sprint 🧮', description: 'Resuelve sumas rápidas antes de que acabe el tiempo.', icon: 'calculator', action: () => setShowMathSprint(true) },
         ];
+
+        const availableMinigames = hasMinigamesUnlocked
+            ? minigames
+            : minigames.filter(game => FREE_MINIGAME_KEYS.has(game.key));
+
+        if (availableMinigames.length === 0) {
+            return;
+        }
 
         // Weighted Selection Logic
         let totalWeight = 0;
-        const weightedPool = minigames.map(game => {
+        const weightedPool = availableMinigames.map(game => {
             const count = minigameCounts[game.key] || 0;
             // Weight formula: 1 / (count + 1)
             // Example: 0 plays -> 1, 1 play -> 0.5, 2 plays -> 0.33
@@ -583,23 +870,36 @@ export default function GameScreen() {
         // ARCADE MODE / SPECIAL EFFECT INTERCEPTION
         const effect = activeDeck[nextCardIndex].specialEffect;
 
+        const hasLockedPremiumMinigameEffect = Boolean(
+            effect && PAID_MINIGAME_EFFECTS.has(effect) && !hasMinigamesUnlocked
+        );
+
         // Check Specific Card Effects
-        if (effect === 'minigame_brick') { setTimeout(() => setShowBrickBreaker(true), 500); return; }
-        if (effect === 'minigame_flappy') { setTimeout(() => setShowFlappyDrink(true), 500); return; }
-        if (effect === 'minigame_roulette') { setTimeout(() => setShowFortuneRoulette(true), 500); return; }
-        if (effect === 'minigame_tapper') { setTimeout(() => setShowFastTapper(true), 500); return; }
-        if (effect === 'minigame_memory') { setTimeout(() => setShowMemoryChallenge(true), 500); return; }
-        if (effect === 'minigame_reflex') { setTimeout(() => setShowReflexDuel(true), 500); return; }
-        if (effect === 'minigame_stop') { setTimeout(() => setShowStopTheBus(true), 500); return; }
-        if (effect === 'minigame_box') { setTimeout(() => setShowGiftBox(true), 500); return; }
-        if (effect === 'minigame_highlow') { setTimeout(() => setShowHighLow(true), 500); return; }
-        if (effect === 'minigame_potato') { setTimeout(() => setShowHotPotato(true), 500); return; }
-        if (effect === 'minigame_sniper') { setTimeout(() => setShowPrecisionSniper(true), 500); return; }
-        if (effect === 'minigame_wire') { setTimeout(() => setShowWireCut(true), 500); return; }
-        if (effect === 'minigame_shakeit') { setTimeout(() => setShowShakeIt(true), 500); return; }
-        if (effect === 'minigame_finger') { setTimeout(() => setShowFingerRoulette(true), 500); return; }
-        if (effect === 'minigame_soccer') { setTimeout(() => setShowFingerSoccer(true), 500); return; }
-        if (effect === 'minigame_smash') { setTimeout(() => setShowSmashOrPass(true), 500); return; }
+        if (!hasLockedPremiumMinigameEffect) {
+            if (effect === 'minigame_brick') { setTimeout(() => setShowBrickBreaker(true), 500); return; }
+            if (effect === 'minigame_flappy') { setTimeout(() => setShowFlappyDrink(true), 500); return; }
+            if (effect === 'minigame_roulette') { setTimeout(() => setShowFortuneRoulette(true), 500); return; }
+            if (effect === 'minigame_tapper') { setTimeout(() => setShowFastTapper(true), 500); return; }
+            if (effect === 'minigame_memory') { setTimeout(() => setShowMemoryChallenge(true), 500); return; }
+            if (effect === 'minigame_reflex') { setTimeout(() => setShowReflexDuel(true), 500); return; }
+            if (effect === 'minigame_stop') { setTimeout(() => setShowStopTheBus(true), 500); return; }
+            if (effect === 'minigame_box') { setTimeout(() => setShowGiftBox(true), 500); return; }
+            if (effect === 'minigame_highlow') { setTimeout(() => setShowHighLow(true), 500); return; }
+            if (effect === 'minigame_potato') { setTimeout(() => setShowHotPotato(true), 500); return; }
+            if (effect === 'minigame_sniper') { setTimeout(() => setShowPrecisionSniper(true), 500); return; }
+            if (effect === 'minigame_wire') { setTimeout(() => setShowWireCut(true), 500); return; }
+
+            if (effect === 'minigame_finger') { setTimeout(() => setShowFingerRoulette(true), 500); return; }
+            if (effect === 'minigame_soccer') { setTimeout(() => setShowFingerSoccer(true), 500); return; }
+
+            if (effect === 'minigame_tug') { setTimeout(() => setShowTugOfWar(true), 500); return; }
+            if (effect === 'minigame_balance') { setTimeout(() => setShowBalanceChallenge(true), 500); return; }
+            if (effect === 'minigame_pairs') { setTimeout(() => setShowDrunkPairs(true), 500); return; }
+
+            if (effect === 'minigame_hippo') { setTimeout(() => setShowHungryHippos(true), 500); return; }
+            if (effect === 'minigame_color') { setTimeout(() => setShowColorMatch(true), 500); return; }
+            if (effect === 'minigame_math') { setTimeout(() => setShowMathSprint(true), 500); return; }
+        }
 
         // Arcade Mode Random Exception
         if (isArcadeMode && !effect) {
@@ -649,6 +949,17 @@ export default function GameScreen() {
         // Reset double points after use
         if (doublePoints) {
             setDoublePoints(false);
+        }
+
+        if (!adsRemoved && isAdsConfigured()) {
+            setTurnCountForAds((prev) => {
+                const next = prev + 1;
+                if (next % INTERSTITIAL_FREQUENCY === 0) {
+                    showInterstitialAdIfLoaded();
+                }
+                return next;
+            });
+            preloadInterstitialAd();
         }
     };
 
@@ -757,74 +1068,150 @@ export default function GameScreen() {
         nextTurn();
     };
 
+    const handleRewardedSkipDrink = async () => {
+        if (isRewardedLoading || adsRemoved || !isRewardedConfigured()) {
+            return;
+        }
+
+        setIsRewardedLoading(true);
+        try {
+            const rewardEarned = await showRewardedAdForReward();
+
+            if (rewardEarned) {
+                setModalVisible(false);
+                Alert.alert('Recompensa aplicada', 'Has evitado este castigo.');
+                nextTurn();
+            } else {
+                Alert.alert('Sin recompensa', 'Debes ver el anuncio completo para obtener la recompensa.');
+            }
+        } finally {
+            setIsRewardedLoading(false);
+            preloadRewardedAd();
+            setRewardedRenderTick((prev) => prev + 1);
+        }
+    };
+
+    const getBaseCardPoints = () => {
+        if (typeof currentCard.points === 'number') return Math.max(1, currentCard.points);
+
+        const intensityPoints: Record<string, number> = {
+            soft: 1,
+            medium: 2,
+            spicy: 3,
+        };
+
+        const byIntensity = intensityPoints[currentCard.intensity || 'medium'] || 2;
+        return currentCard.type === 'challenge' ? byIntensity + 1 : byIntensity;
+    };
+
+    const applyDoublePoints = (points: number) => {
+        if (doublePoints) {
+            setDoublePoints(false);
+            return points * 2;
+        }
+        return points;
+    };
+
+    const applySpecialEffectIfNeeded = () => {
+        if (currentCard.specialEffect) {
+            handleSpecialEffect(currentCard.specialEffect);
+            if (currentCard.specialEffect === 'steal') {
+                return true;
+            }
+        }
+        return false;
+    };
+
     const handleChallengeFail = () => {
-        // User failed the challenge -> Drink -> Gain Points
-        const points = currentCard.points || 1;
-        addPoints(currentPlayer, points);
-        handleDrink(`¡Has bebido!\n(${points} Trago${points > 1 ? 's' : ''})`);
-        // handleDrink opens modal, its close function calls nextTurn
+        const basePoints = getBaseCardPoints();
+        const failPoints = applyDoublePoints(Math.max(0, Math.floor(basePoints * 0.5)));
+
+        if (failPoints > 0) {
+            addPoints(currentPlayer, failPoints);
+        }
+
+        if (applySpecialEffectIfNeeded()) {
+            return;
+        }
+
+        handleDrink(currentCard.drinkAction || 'Fallaste el reto. ¡Bebe!');
+    };
+
+    const handleStatementSuccess = () => {
+        const basePoints = getBaseCardPoints();
+        const successPoints = applyDoublePoints(basePoints + 1);
+
+        addPoints(currentPlayer, successPoints);
+
+        if (applySpecialEffectIfNeeded()) {
+            return;
+        }
+
+        if (currentCard.drinkTrigger === 'always') {
+            handleDrink(currentCard.drinkAction);
+            return;
+        }
+
+        nextTurn();
     };
 
     const handleChoice = (choice: 'yes' | 'no') => {
-        // DRINK = POINTS logic
-        // If the choice triggers a drink, you gain points (drunk score).
-        // If the choice is safe, you get 0 points.
+        const basePoints = getBaseCardPoints();
+        const drinkPoints = applyDoublePoints(basePoints);
+        const safePoints = applyDoublePoints(1); // Participation reward for non-drink answer
 
-        const basePoints = currentCard.points || 1;
-        const finalPoints = doublePoints ? basePoints * 2 : basePoints;
-
-        // Reset double points if used
-        if (doublePoints) setDoublePoints(false);
-
-        // Handle special effects
-        if (currentCard.specialEffect) {
-            handleSpecialEffect(currentCard.specialEffect);
-            // If steal, we wait for selection, but we assume no points for the act of stealing itself unless specified
-            if (currentCard.specialEffect === 'steal') {
-                return;
-            }
+        if (applySpecialEffectIfNeeded()) {
+            return;
         }
 
-        // Check if we need to drink
         if (currentCard.drinkTrigger === choice) {
-            // DRINK -> Points Increase
-            addPoints(currentPlayer, finalPoints);
+            addPoints(currentPlayer, drinkPoints);
             handleDrink(currentCard.drinkAction);
         } else {
-            // SAFE -> No Points
-            addPoints(currentPlayer, 0);
+            addPoints(currentPlayer, safePoints);
             nextTurn();
         }
     };
 
     const handleContinue = () => {
-        // Award points ONLY if it is a rigid drinking card (e.g. viral/rule)
-        const basePoints = currentCard.points || 1;
-        const finalPoints = doublePoints ? basePoints * 2 : basePoints;
+        const basePoints = getBaseCardPoints();
+        const finalPoints = applyDoublePoints(basePoints);
+        const participationPoints = applyDoublePoints(1);
+
+        if (applySpecialEffectIfNeeded()) {
+            return; // Wait for player selection on steal/gift
+        }
 
         if (currentCard.drinkTrigger === 'always') {
-            // It's a drinking card -> Add Points
             addPoints(currentPlayer, finalPoints);
         } else {
-            // Just info/game -> 0 Points
-            addPoints(currentPlayer, 0);
+            addPoints(currentPlayer, participationPoints);
         }
 
-        // Handle special effects
-        if (currentCard.specialEffect) {
-            handleSpecialEffect(currentCard.specialEffect);
-            if (currentCard.specialEffect === 'steal') {
-                return; // Wait for player selection
-            }
-        }
-
-        // Handle drink trigger
         if (currentCard.drinkTrigger === 'always') {
             handleDrink(currentCard.drinkAction);
         } else {
             nextTurn();
         }
     };
+
+    const isYesNoCard = currentCard.mode === 'binary' || currentCard.drinkTrigger === 'yes' || currentCard.drinkTrigger === 'no';
+    const singleActionCardIds = new Set([
+        'g1', 'g8', 'n3', 'n9', 'n13', 'n21', 'n22',
+        'a5', 'a10', 'a11',
+        'q2', 'q5',
+        'ng3',
+        'df6', 'df12',
+        'cc3', 'cc4', 'cc8', 'cc14', 'cc15', 'cc23',
+        'sx16'
+    ]);
+    const isSingleActionCard = currentCard.responseMode === 'single' || singleActionCardIds.has(currentCard.id);
+    const negativeActionLabel = currentCard.mode === 'rule' ? 'NO ACEPTO' : 'FALLÉ';
+    const positiveActionLabel = isRouletteMode
+        ? '🎲 GIRAR'
+        : currentCard.mode === 'rule'
+            ? 'ACEPTO'
+            : 'HECHO';
 
 
 
@@ -837,10 +1224,26 @@ export default function GameScreen() {
                 visible={showConfigModal}
                 onRequestClose={() => setShowConfigModal(false)}
             >
-                <View style={[styles.container, { paddingTop: 15 }]}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                        <Text style={[styles.header, { color: colors.darkPink, marginBottom: 0 }]}>Configuración 🎮</Text>
-                        <TouchableOpacity onPress={() => setShowConfigModal(false)} style={{ padding: 10 }}>
+                <KeyboardAvoidingView
+                    style={{ flex: 1 }}
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
+                >
+                <View style={[styles.container, { paddingTop: Math.max(15, insets.top + 8) }]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 20 }}>
+                        <Text
+                            style={[styles.header, { color: colors.darkPink, marginBottom: 0, flexShrink: 1, marginRight: 12 }]}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                        >
+                            Configuración 🎮
+                        </Text>
+                        <TouchableOpacity
+                            onPress={() => setShowConfigModal(false)}
+                            style={[styles.headerIconButton, { flexShrink: 0 }]}
+                            accessibilityRole="button"
+                            accessibilityLabel="Cerrar configuración"
+                        >
                             <FontAwesome name="close" size={24} color={colors.text} />
                         </TouchableOpacity>
                     </View>
@@ -877,12 +1280,16 @@ export default function GameScreen() {
                         </TouchableOpacity>
                     </View>
 
-                    <ScrollView style={{ width: '100%' }} showsVerticalScrollIndicator={false}>
+                    <ScrollView
+                        style={{ width: '100%' }}
+                        showsVerticalScrollIndicator={false}
+                        keyboardShouldPersistTaps="handled"
+                    >
                         <Text style={[styles.subheader, { color: colors.text, marginBottom: 20, marginTop: 10 }]}>Personaliza tu experiencia</Text>
 
                         {/* Roulette Mode Toggle */}
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, backgroundColor: 'rgba(0,0,0,0.05)', padding: 10, borderRadius: 10 }}>
-                            <View style={{ flex: 1 }}>
+                            <View style={{ flex: 1, backgroundColor: 'transparent' }}>
                                 <Text style={{ color: colors.text, fontWeight: 'bold' }}>🎲 Modo Ruleta (Caos)</Text>
                                 <Text style={{ color: colors.text, fontSize: 12, opacity: 0.7 }}>Turnos aleatorios en cada carta</Text>
                             </View>
@@ -896,7 +1303,7 @@ export default function GameScreen() {
 
                         {/* Arcade Mode Toggle */}
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, backgroundColor: 'rgba(0,0,0,0.05)', padding: 10, borderRadius: 10 }}>
-                            <View style={{ flex: 1 }}>
+                            <View style={{ flex: 1, backgroundColor: 'transparent' }}>
                                 <Text style={{ color: colors.text, fontWeight: 'bold' }}>🕹️ Modo Arcade (Minijuegos)</Text>
                                 <Text style={{ color: colors.text, fontSize: 12, opacity: 0.7 }}>Aparición frecuente de minijuegos</Text>
                             </View>
@@ -913,7 +1320,7 @@ export default function GameScreen() {
 
                         {/* Minigames Only Toggle */}
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, backgroundColor: 'rgba(0,0,0,0.05)', padding: 10, borderRadius: 10 }}>
-                            <View style={{ flex: 1 }}>
+                            <View style={{ flex: 1, backgroundColor: 'transparent' }}>
                                 <Text style={{ color: colors.text, fontWeight: 'bold' }}>🎮 Solo Minijuegos</Text>
                                 <Text style={{ color: colors.text, fontSize: 12, opacity: 0.7 }}>Sin cartas, solo acción desenfrenada</Text>
                             </View>
@@ -921,6 +1328,10 @@ export default function GameScreen() {
                                 trackColor={{ false: "#767577", true: colors.purple }}
                                 thumbColor={isMinigameOnlyMode ? "#f4f3f4" : "#f4f3f4"}
                                 onValueChange={(v) => {
+                                    if (v && !hasMinigamesUnlocked) {
+                                        Alert.alert('Contenido Premium', 'Desbloquea minijuegos para activar este modo.');
+                                        return;
+                                    }
                                     setIsMinigameOnlyMode(v);
                                     if (v) setIsArcadeMode(false);
                                 }}
@@ -1015,10 +1426,120 @@ export default function GameScreen() {
                         >
                             <Text style={styles.buttonText}>➕ Añadir Cartas Personalizadas ({customCards.length})</Text>
                         </TouchableOpacity>
+
+                        <View style={{
+                            backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                            borderRadius: 14,
+                            padding: 14,
+                            marginBottom: 20,
+                        }}>
+                            <Text style={{ color: colors.text, fontSize: 18, fontWeight: 'bold', marginBottom: 6 }}>
+                                💳 Premium
+                            </Text>
+                            <Text style={{ color: colors.text, opacity: 0.75, fontSize: 12, marginBottom: 12 }}>
+                                Gestiona desbloqueos con RevenueCat. Las compras se cobran via Google Play/App Store y se pagan a tu cuenta de desarrollador.
+                            </Text>
+
+                            {!isIapReady && (
+                                <Text style={{ color: colors.orange, fontSize: 12, marginBottom: 10 }}>
+                                    Configura tus API Keys de RevenueCat en app.json para activar compras.
+                                </Text>
+                            )}
+
+                            <View style={{ gap: 8 }}>
+                                <TouchableOpacity
+                                    style={[styles.button, { backgroundColor: hasMinigamesUnlocked ? '#2e8b57' : colors.darkPink, paddingVertical: 12 }]}
+                                    onPress={() => handlePurchase('minigames')}
+                                    disabled={hasMinigamesUnlocked || isIapLoading || !isIapReady}
+                                >
+                                    <Text style={[styles.buttonText, { fontSize: 14 }]}>🎮 {hasMinigamesUnlocked ? 'Minijuegos desbloqueados' : 'Desbloquear mas minijuegos'}</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[styles.button, { backgroundColor: hasQuestionsUnlocked ? '#2e8b57' : colors.darkPink, paddingVertical: 12 }]}
+                                    onPress={() => handlePurchase('questions')}
+                                    disabled={hasQuestionsUnlocked || isIapLoading || !isIapReady}
+                                >
+                                    <Text style={[styles.buttonText, { fontSize: 14 }]}>🃏 {hasQuestionsUnlocked ? 'Preguntas desbloqueadas' : 'Desbloquear mas preguntas'}</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[styles.button, { backgroundColor: adsRemoved ? '#2e8b57' : colors.darkPink, paddingVertical: 12 }]}
+                                    onPress={() => handlePurchase('removeAds')}
+                                    disabled={adsRemoved || isIapLoading || !isIapReady}
+                                >
+                                    <Text style={[styles.buttonText, { fontSize: 14 }]}>🚫📢 {adsRemoved ? 'Anuncios desactivados' : 'Quitar anuncios'}</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[styles.button, { backgroundColor: colors.inputBackground, paddingVertical: 11 }]}
+                                    onPress={handleRestorePurchases}
+                                    disabled={isIapLoading || !isIapReady}
+                                >
+                                    <Text style={[styles.buttonText, { fontSize: 13, color: colors.text }]}>Restaurar compras</Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            {isIapLoading && (
+                                <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                    <ActivityIndicator size="small" color={colors.pink} />
+                                    <Text style={{ color: colors.text, fontSize: 12 }}>Procesando...</Text>
+                                </View>
+                            )}
+
+                            <Text style={{ color: colors.text, opacity: 0.75, fontSize: 11, marginTop: 10 }}>
+                                Estado anuncios: {isAdsConfigured() ? 'Configurados ✅' : 'No configurados ❌'} {adsRemoved ? (adminUnlockAll ? '· Sin anuncios (admin)' : '· Sin anuncios por compra') : ''}
+                            </Text>
+
+                            {adminUnlockAll ? (
+                                <View style={{ marginTop: 14 }}>
+                                    <Text style={{ color: colors.text, fontSize: 12, marginBottom: 8 }}>
+                                        🔓 Modo admin activo: minijuegos, preguntas y anuncios desbloqueados.
+                                    </Text>
+                                    <TouchableOpacity
+                                        style={[styles.button, { backgroundColor: colors.inputBackground, paddingVertical: 11 }]}
+                                        onPress={handleAdminDeactivate}
+                                        accessibilityRole="button"
+                                        accessibilityLabel="Desactivar modo admin"
+                                    >
+                                        <Text style={[styles.buttonText, { fontSize: 13, color: colors.text }]}>Desactivar modo admin</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            ) : (
+                                <View style={{ marginTop: 14, flexDirection: 'row', gap: 8 }}>
+                                    <View style={{ flex: 1, justifyContent: 'center' }}>
+                                        <TextInput
+                                            style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, fontSize: 13, padding: 11, paddingRight: 40 }]}
+                                            placeholder="Código admin"
+                                            placeholderTextColor={isDark ? '#aaa' : '#666'}
+                                            value={adminCodeInput}
+                                            onChangeText={setAdminCodeInput}
+                                            secureTextEntry={!showAdminCode}
+                                            autoCapitalize="none"
+                                        />
+                                        <TouchableOpacity
+                                            onPress={() => setShowAdminCode((prev) => !prev)}
+                                            style={{ position: 'absolute', right: 0, height: '100%', width: 40, alignItems: 'center', justifyContent: 'center' }}
+                                            accessibilityRole="button"
+                                            accessibilityLabel={showAdminCode ? 'Ocultar código admin' : 'Mostrar código admin'}
+                                        >
+                                            <FontAwesome name={showAdminCode ? 'eye-slash' : 'eye'} size={16} color={colors.text} style={{ opacity: 0.6 }} />
+                                        </TouchableOpacity>
+                                    </View>
+                                    <TouchableOpacity
+                                        style={[styles.button, { flex: 0, backgroundColor: colors.inputBackground, paddingVertical: 11, paddingHorizontal: 20 }]}
+                                        onPress={handleAdminCodeSubmit}
+                                    >
+                                        <Text style={[styles.buttonText, { fontSize: 13, color: colors.text }]}>OK</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+                        </View>
                     </ScrollView>
 
                     {/* Button Removed */}
                 </View>
+                </KeyboardAvoidingView>
             </Modal>
 
             {/* Custom Card Modal - Always available, displays on top */}
@@ -1174,7 +1695,7 @@ export default function GameScreen() {
                                                         <Text style={{ marginRight: 10, fontSize: 16 }}>
                                                             {card.type === 'question' ? '❓' : card.type === 'challenge' ? '⚡' : '📜'}
                                                         </Text>
-                                                        <View style={{ flex: 1 }}>
+                                                        <View style={{ flex: 1, backgroundColor: 'transparent' }}>
                                                             <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600' }} numberOfLines={2}>
                                                                 {card.text}
                                                             </Text>
@@ -1235,13 +1756,29 @@ export default function GameScreen() {
         return (
             <View style={[styles.container, { paddingTop: 50 }]}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 20 }}>
-                    <Text style={[styles.header, { color: colors.darkPink }]}>LesGo 🌈</Text>
-                    <View style={{ flexDirection: 'row', gap: 10 }}>
-                        <TouchableOpacity onPress={() => setShowConfigModal(true)} style={{ padding: 10 }}>
-                            <FontAwesome name="cog" size={28} color={colors.purple} />
+                    <Text
+                        style={[styles.header, { color: colors.darkPink, flexShrink: 1, marginRight: 12 }]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                    >
+                        Lesbo Party 🌈
+                    </Text>
+                    <View style={{ flexDirection: 'row', gap: 10, flexShrink: 0 }}>
+                        <TouchableOpacity
+                            onPress={() => setShowConfigModal(true)}
+                            style={styles.headerIconButton}
+                            accessibilityRole="button"
+                            accessibilityLabel="Configuración"
+                        >
+                            <FontAwesome name="cog" size={24} color={colors.purple} />
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={() => setShowInfoModal(true)} style={styles.infoButtonTop}>
-                            <FontAwesome name="info-circle" size={28} color={colors.darkPink} />
+                        <TouchableOpacity
+                            onPress={() => setShowInfoModal(true)}
+                            style={styles.headerIconButton}
+                            accessibilityRole="button"
+                            accessibilityLabel="Información del juego"
+                        >
+                            <FontAwesome name="info-circle" size={24} color={colors.darkPink} />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -1276,12 +1813,14 @@ export default function GameScreen() {
                     )}
                 </ScrollView>
                 <TouchableOpacity
-                    style={[styles.startButton, { backgroundColor: players.length > 0 ? colors.orange : '#ccc' }]}
+                    style={[styles.startButton, { backgroundColor: players.length > 0 ? colors.orange : (isDark ? '#4a4a4a' : '#ccc') }]}
                     onPress={startGame}
                     disabled={players.length === 0}
                 >
-                    <Text style={styles.startButtonText}>EMPEZAR JUEGO</Text>
+                    <Text style={[styles.startButtonText, players.length === 0 && { color: isDark ? '#999' : '#666' }]}>EMPEZAR JUEGO</Text>
                 </TouchableOpacity>
+
+                {renderBannerAd()}
 
                 {/* Info Modal - Only in Setup Screen */}
                 <InfoModal
@@ -1312,7 +1851,14 @@ export default function GameScreen() {
     }
 
     return (
-        <View style={styles.container}>
+        <View
+            style={[
+                styles.container,
+                styles.playingContainer,
+                isCompactScreen && styles.playingContainerCompact,
+                { paddingBottom: bottomInteractionPadding }
+            ]}
+        >
             <View style={styles.headerRow}>
                 {/* Left: Ranking/Clasificación */}
                 <TouchableOpacity style={styles.rankingButton} onPress={() => setShowScoreboard(true)}>
@@ -1351,17 +1897,17 @@ export default function GameScreen() {
                     null
                 ) : (
                     // 3. Standard Card Mode -> NEW LARGE HEADER (Name Only) - Applies to Minigame Intro too
-                    <View style={{ width: '100%', alignItems: 'center', marginBottom: 30 }}>
-                        <Text style={{ fontSize: 16, color: colors.text, opacity: 0.6, marginBottom: 10, letterSpacing: 2 }}>
+                    <View style={[styles.turnHeaderContainer, isCompactScreen && styles.turnHeaderContainerCompact]}>
+                        <Text style={{ fontSize: turnLabelSize, color: colors.text, opacity: 0.6, marginBottom: 6, letterSpacing: 1.5 }}>
                             TURNO DE
                         </Text>
                         <Text style={{
-                            fontSize: 42,
+                            fontSize: turnNameSize,
                             fontWeight: '900',
                             color: colors.text,
                             textAlign: 'center',
-                            lineHeight: 50 // Better for long names
-                        }}>
+                            lineHeight: turnNameLineHeight
+                        }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65}>
                             {players[currentPlayerIndex]}
                         </Text>
                     </View>
@@ -1396,9 +1942,9 @@ export default function GameScreen() {
                         </Text>
                     </View>
 
-                    <View style={styles.buttonContainer}>
+                    <View style={[styles.buttonContainer, isCompactScreen && styles.buttonContainerCompact, { marginBottom: buttonBottomMargin }]}>
                         <TouchableOpacity
-                            style={[styles.button, { backgroundColor: colors.purple, width: '100%' }]}
+                            style={[styles.button, styles.actionButton, isCompactScreen && styles.actionButtonCompact, { backgroundColor: colors.purple, width: '100%' }]}
                             onPress={pendingMinigame.onPlay}
                         >
                             <Text style={styles.buttonText}>🎮 JUGAR</Text>
@@ -1415,12 +1961,19 @@ export default function GameScreen() {
                         onTimerStart={() => startTimer(10)}
                     />
 
-                    <View style={styles.buttonContainer}>
-                        {currentCard.mode === 'binary' ? (
+                    <View style={[styles.buttonContainer, isCompactScreen && styles.buttonContainerCompact, { marginBottom: buttonBottomMargin }]}>
+                        {isSingleActionCard ? (
+                            <TouchableOpacity
+                                style={[styles.button, styles.actionButton, isCompactScreen && styles.actionButtonCompact, { backgroundColor: colors.pink, width: '100%' }]}
+                                onPress={handleContinue}
+                            >
+                                <Text style={styles.buttonText} numberOfLines={1} adjustsFontSizeToFit>SEGUIR</Text>
+                            </TouchableOpacity>
+                        ) : isYesNoCard ? (
                             <>
                                 {/* NO Logic */}
                                 <TouchableOpacity
-                                    style={[styles.button, { backgroundColor: colors.orange }]}
+                                    style={[styles.button, styles.actionButton, isCompactScreen && styles.actionButtonCompact, { backgroundColor: colors.orange }]}
                                     onPress={() => handleChoice('no')}
                                 >
                                     <Text style={styles.buttonText}>NO</Text>
@@ -1428,10 +1981,10 @@ export default function GameScreen() {
 
                                 {/* YES Logic */}
                                 <TouchableOpacity
-                                    style={[styles.button, { backgroundColor: colors.pink }]}
+                                    style={[styles.button, styles.actionButton, isCompactScreen && styles.actionButtonCompact, { backgroundColor: colors.pink }]}
                                     onPress={() => handleChoice('yes')}
                                 >
-                                    <Text style={styles.buttonText} numberOfLines={1} adjustsFontSizeToFit>SÍ / HECHO</Text>
+                                    <Text style={styles.buttonText} numberOfLines={1} adjustsFontSizeToFit>SÍ</Text>
                                 </TouchableOpacity>
                             </>
                         ) : (
@@ -1439,19 +1992,19 @@ export default function GameScreen() {
                                 {/* Statement / Rule / Challenge Handling */}
                                 {/* Button 2: FAILED / DRINK (New) */}
                                 <TouchableOpacity
-                                    style={[styles.button, { backgroundColor: colors.orange, marginRight: 10 }]}
+                                    style={[styles.button, styles.actionButton, isCompactScreen && styles.actionButtonCompact, { backgroundColor: colors.orange, marginRight: 10 }]}
                                     onPress={handleChallengeFail}
                                 >
-                                    <Text style={styles.buttonText} numberOfLines={1} adjustsFontSizeToFit>FALLÉ</Text>
+                                    <Text style={styles.buttonText} numberOfLines={1} adjustsFontSizeToFit>{negativeActionLabel}</Text>
                                 </TouchableOpacity>
 
                                 {/* Button 1: SUCCESS / NEXT */}
                                 <TouchableOpacity
-                                    style={[styles.button, { backgroundColor: isRouletteMode ? colors.purple : colors.pink }]}
-                                    onPress={nextTurn}
+                                    style={[styles.button, styles.actionButton, isCompactScreen && styles.actionButtonCompact, { backgroundColor: isRouletteMode ? colors.purple : colors.pink }]}
+                                    onPress={handleStatementSuccess}
                                 >
                                     <Text style={styles.buttonText} numberOfLines={1} adjustsFontSizeToFit>
-                                        {isRouletteMode ? '🎲 GIRAR' : currentCard.mode === 'rule' ? 'ACEPTO' : 'HECHO'}
+                                        {positiveActionLabel}
                                     </Text>
                                 </TouchableOpacity>
                             </>
@@ -1460,6 +2013,8 @@ export default function GameScreen() {
                 </>
             )
             }
+
+            {renderBannerAd()}
 
 
 
@@ -1471,16 +2026,75 @@ export default function GameScreen() {
                 onRequestClose={closeDrinkModal}
             >
                 <View style={styles.modalView}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.drinkText}>{drinkMessage}</Text>
-                        <Text style={styles.victimText}>{currentPlayer}</Text>
-                        <FontAwesome name="glass" size={80} color={colors.darkPink} />
+                    <View
+                        style={[
+                            styles.modalContent,
+                            styles.drinkModalContent,
+                            {
+                                backgroundColor: colors.modalBackground,
+                                maxHeight: drinkModalMaxHeight,
+                                paddingHorizontal: isVerySmallScreen ? 14 : 20,
+                                paddingVertical: isVerySmallScreen ? 18 : 26,
+                            }
+                        ]}
+                    >
+                        <Text
+                            style={[styles.drinkText, { color: colors.darkPink, fontSize: drinkTitleSize }]}
+                            numberOfLines={4}
+                            adjustsFontSizeToFit
+                            minimumFontScale={0.55}
+                        >
+                            {drinkMessage}
+                        </Text>
+                        <Text
+                            style={[styles.victimText, { color: colors.text, fontSize: drinkPlayerSize }]}
+                            numberOfLines={2}
+                            adjustsFontSizeToFit
+                            minimumFontScale={0.65}
+                        >
+                            {currentPlayer}
+                        </Text>
+                        <FontAwesome name="glass" size={drinkIconSize} color={colors.darkPink} />
                         <TouchableOpacity
-                            style={[styles.modalButton, { backgroundColor: colors.orange }]}
+                            style={[styles.modalButton, { backgroundColor: colors.orange, marginTop: isVerySmallScreen ? 16 : 24 }]}
                             onPress={closeDrinkModal}
                         >
-                            <Text style={styles.buttonText}>¡He bebido!</Text>
+                            <Text
+                                style={[styles.buttonText, { fontSize: drinkButtonTextSize }]}
+                                numberOfLines={1}
+                                adjustsFontSizeToFit
+                                minimumFontScale={0.7}
+                            >
+                                ¡He bebido!
+                            </Text>
                         </TouchableOpacity>
+
+                        {(!adsRemoved && isRewardedConfigured()) && (
+                            <TouchableOpacity
+                                style={[
+                                    styles.modalButton,
+                                    {
+                                        backgroundColor: (canUseRewardedSkip || isRewardedLoading) ? colors.purple : colors.inputBackground,
+                                        marginTop: 10,
+                                        opacity: canUseRewardedSkip && !isRewardedLoading ? 1 : 0.7
+                                    }
+                                ]}
+                                onPress={handleRewardedSkipDrink}
+                                disabled={!canUseRewardedSkip || isRewardedLoading}
+                            >
+                                {isRewardedLoading ? (
+                                    <ActivityIndicator size="small" color={colors.white} />
+                                ) : (
+                                    <Text style={[styles.buttonText, { fontSize: 14, color: canUseRewardedSkip ? colors.white : colors.text }]}>🎁 Ver anuncio y saltar castigo</Text>
+                                )}
+                            </TouchableOpacity>
+                        )}
+
+                        {(!adsRemoved && isRewardedConfigured() && !canUseRewardedSkip && !isRewardedLoading) && (
+                            <Text style={{ color: colors.text, opacity: 0.6, fontSize: 11, marginTop: 8 }}>
+                                Cargando anuncio...
+                            </Text>
+                        )}
                     </View>
                 </View>
             </Modal>
@@ -1493,10 +2107,17 @@ export default function GameScreen() {
                 onRequestClose={() => setShowScoreboard(false)}
             >
                 <View style={styles.modalView}>
-                    <View style={[styles.modalContent, { backgroundColor: colors.modalBackground }]}>
-                        <View style={[styles.modalHeader, { borderBottomColor: colors.pink }]}>
+                    <View style={[styles.modalContent, styles.scoreModalContent, { backgroundColor: colors.modalBackground }]}>
+                        <View style={[styles.modalHeader, styles.scoreModalHeader, { borderBottomColor: colors.pink }]}>
                             <FontAwesome name="trophy" size={30} color={colors.pink} />
-                            <Text style={[styles.modalTitle, { color: colors.text }]}>Puntuaciones</Text>
+                            <Text
+                                style={[styles.modalTitle, styles.scoreModalTitle, { color: colors.text, fontSize: scoreModalTitleSize }]}
+                                numberOfLines={1}
+                                adjustsFontSizeToFit
+                                minimumFontScale={0.72}
+                            >
+                                Puntuaciones
+                            </Text>
                         </View>
                         <ScrollView style={{ width: '100%', maxHeight: 500, marginTop: 10 }}>
                             {/* Scoreboard Section */}
@@ -1516,14 +2137,24 @@ export default function GameScreen() {
                                         ]}
                                     >
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                                            <Text style={{ fontSize: 20, width: 30 }}>
+                                            <Text style={{ fontSize: medalSize, width: 30 }}>
                                                 {position === 0 ? '🥇' : position === 1 ? '🥈' : position === 2 ? '🥉' : '  '}
                                             </Text>
-                                            <Text style={[styles.scorePlayerName, { color: colors.text, fontSize: 18 }]}>
+                                            <Text
+                                                style={[styles.scorePlayerName, { color: colors.text, fontSize: scorePlayerNameSize }]}
+                                                numberOfLines={1}
+                                                adjustsFontSizeToFit
+                                                minimumFontScale={0.8}
+                                            >
                                                 {player === currentPlayer ? '▶ ' : ''}{player}
                                             </Text>
                                         </View>
-                                        <Text style={[styles.scorePoints, { color: colors.pink, fontSize: 20, fontWeight: 'bold' }]}>
+                                        <Text
+                                            style={[styles.scorePoints, { color: colors.pink, fontSize: scorePointsSize, fontWeight: 'bold' }]}
+                                            numberOfLines={1}
+                                            adjustsFontSizeToFit
+                                            minimumFontScale={0.8}
+                                        >
                                             {score} pts
                                         </Text>
                                     </View>
@@ -1550,24 +2181,45 @@ export default function GameScreen() {
                 onRequestClose={() => setShowExitConfirm(false)}
             >
                 <View style={styles.modalView}>
-                    <View style={[styles.modalContent, { backgroundColor: colors.modalBackground }]}>
+                    <View style={[styles.modalContent, styles.exitModalContent, { backgroundColor: colors.modalBackground }]}>
                         <FontAwesome name="exclamation-triangle" size={60} color={colors.orange} style={{ marginBottom: 20 }} />
-                        <Text style={[styles.modalTitle, { color: colors.text }]}>¿Estás segura?</Text>
-                        <Text style={{ fontSize: 16, color: colors.text, textAlign: 'center', marginTop: 10, marginBottom: 30, opacity: 0.8 }}>
+                        <Text
+                            style={[styles.modalTitle, styles.exitModalTitle, { color: colors.text, fontSize: exitModalTitleSize }]}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                            minimumFontScale={0.75}
+                        >
+                            ¿Estás segura?
+                        </Text>
+                        <Text style={[styles.exitModalDescription, { fontSize: exitModalTextSize, color: colors.text }]}>
                             Vas a perder la partida y todos los puntos
                         </Text>
-                        <View style={{ flexDirection: 'row', gap: 15, width: '100%' }}>
+                        <View style={[styles.exitActionsRow, isCompactScreen && styles.exitActionsRowCompact]}>
                             <TouchableOpacity
                                 style={[styles.button, { backgroundColor: colors.pink, flex: 1 }]}
                                 onPress={() => setShowExitConfirm(false)}
                             >
-                                <Text style={styles.buttonText}>Cancelar</Text>
+                                <Text
+                                    style={[styles.buttonText, { fontSize: exitButtonTextSize }]}
+                                    numberOfLines={1}
+                                    adjustsFontSizeToFit
+                                    minimumFontScale={0.8}
+                                >
+                                    Cancelar
+                                </Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={[styles.button, { backgroundColor: colors.orange, flex: 1 }]}
                                 onPress={resetGame}
                             >
-                                <Text style={styles.buttonText}>Salir</Text>
+                                <Text
+                                    style={[styles.buttonText, { fontSize: exitButtonTextSize }]}
+                                    numberOfLines={1}
+                                    adjustsFontSizeToFit
+                                    minimumFontScale={0.8}
+                                >
+                                    Salir
+                                </Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -1804,20 +2456,7 @@ export default function GameScreen() {
                 colors={colors}
             />
 
-            <ShakeIt
-                visible={showShakeIt}
-                onClose={(success) => {
-                    setShowShakeIt(false);
-                    if (success) {
-                        addPoints(players[currentPlayerIndex], 0);
-                        nextTurn();
-                    } else {
-                        handleDrink('¡QUÉ FLOJA!\n(2 Tragos)');
-                        addPoints(players[currentPlayerIndex], 2);
-                    }
-                }}
-                colors={colors}
-            />
+
 
             <FingerRoulette
                 visible={showFingerRoulette}
@@ -1838,17 +2477,62 @@ export default function GameScreen() {
                 colors={colors}
             />
 
-            <SmashOrPass
-                visible={showSmashOrPass}
+
+
+
+            <TugOfWar visible={showTugOfWar} onClose={() => { setShowTugOfWar(false); nextTurn(); }} colors={colors} />
+            <BalanceChallenge visible={showBalanceChallenge} onClose={() => { setShowBalanceChallenge(false); nextTurn(); }} colors={colors} />
+            <DrunkPairs visible={showDrunkPairs} onClose={() => { setShowDrunkPairs(false); nextTurn(); }} colors={colors} />
+            <ColorMatch
+                visible={showColorMatch}
                 onClose={(success) => {
-                    setShowSmashOrPass(false);
+                    setShowColorMatch(false);
+                    if (!success) {
+                        handleDrink('¡TE LIASTE CON LOS COLORES!\n(2 Tragos)');
+                        addPoints(players[currentPlayerIndex], 2);
+                    }
                     nextTurn();
                 }}
                 colors={colors}
             />
 
+            <MathSprint
+                visible={showMathSprint}
+                onClose={(success) => {
+                    setShowMathSprint(false);
+                    if (!success) {
+                        handleDrink('¡SE TE ATRAGANTARON LAS SUMAS!\n(2 Tragos)');
+                        addPoints(players[currentPlayerIndex], 2);
+                    }
+                    nextTurn();
+                }}
+                colors={colors}
+            />
 
-        </View >
+            <HungryHippos
+                visible={showHungryHippos}
+                allPlayers={players}
+                onClose={(results) => {
+                    setShowHungryHippos(false);
+                    // Add points to winner
+                    if (results.winner) {
+                        const winnerIndex = players.indexOf(results.winner);
+                        if (winnerIndex >= 0) {
+                            addPoints(results.winner, 5); // Winner gets 5 points
+                        }
+                    }
+                    // Losers drink?
+                    results.losers.forEach(loser => {
+                        // Logic to handle multiple losers drinking? 
+                        // Just show generic drink message or let logic handle it.
+                        // For now we just award points to winner and nextTurn
+                    });
+                    // Show winner modal or toast? Game shows it internally.
+                    nextTurn();
+                }}
+                colors={colors}
+            />
+        </View>
     );
 }
 
@@ -1862,8 +2546,18 @@ const styles = StyleSheet.create({
         padding: 20,
         paddingTop: 120, // Increased to clear absolute header buttons
     },
+    playingContainer: {
+        justifyContent: 'flex-start',
+        paddingTop: 106,
+        paddingBottom: 8,
+    },
+    playingContainerCompact: {
+        paddingTop: 96,
+        paddingHorizontal: 16,
+        paddingBottom: 6,
+    },
     header: {
-        fontSize: 32,
+        fontSize: 26,
         fontWeight: 'bold',
         marginBottom: 30,
     },
@@ -1942,6 +2636,14 @@ const styles = StyleSheet.create({
         fontSize: 32,
         fontWeight: 'bold',
     },
+    turnHeaderContainer: {
+        width: '100%',
+        alignItems: 'center',
+        marginBottom: 22,
+    },
+    turnHeaderContainerCompact: {
+        marginBottom: 12,
+    },
     card: {
         width: '100%',
         flex: 1,
@@ -1978,7 +2680,11 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         width: '100%',
         gap: 20,
-        marginBottom: 20,
+        marginBottom: 8,
+    },
+    buttonContainerCompact: {
+        gap: 12,
+        marginBottom: 12,
     },
     button: {
         flex: 1,
@@ -1987,6 +2693,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         elevation: 3,
+    },
+    actionButton: {
+        paddingVertical: 16,
+    },
+    actionButtonCompact: {
+        paddingVertical: 14,
+        borderRadius: 12,
     },
     buttonText: {
         color: '#fff',
@@ -2018,21 +2731,24 @@ const styles = StyleSheet.create({
         elevation: 5,
         width: '80%',
     },
+    drinkModalContent: {
+        width: '90%',
+        maxWidth: 440,
+    },
     drinkText: {
-        fontSize: 48,
         fontWeight: 'bold',
-        color: '#D52D00', // Deep Orange
-        marginBottom: 10,
+        marginBottom: 12,
         textAlign: 'center',
+        width: '100%',
     },
     victimText: {
-        fontSize: 24,
         fontWeight: 'bold',
-        marginBottom: 30,
-        color: '#333',
+        marginBottom: 22,
+        width: '100%',
+        textAlign: 'center',
     },
     modalButton: {
-        marginTop: 40,
+        marginTop: 24,
         padding: 15,
         borderRadius: 10,
         width: '100%',
@@ -2183,6 +2899,44 @@ const styles = StyleSheet.create({
         fontSize: 26,
         fontWeight: 'bold',
     },
+    scoreModalContent: {
+        width: '90%',
+        maxWidth: 520,
+        paddingHorizontal: 22,
+        paddingVertical: 30,
+    },
+    scoreModalHeader: {
+        justifyContent: 'flex-start',
+    },
+    scoreModalTitle: {
+        flex: 1,
+        flexShrink: 1,
+    },
+    exitModalContent: {
+        width: '90%',
+        maxWidth: 500,
+        paddingHorizontal: 22,
+        paddingVertical: 30,
+    },
+    exitModalTitle: {
+        width: '100%',
+        textAlign: 'center',
+        flexShrink: 1,
+    },
+    exitModalDescription: {
+        textAlign: 'center',
+        marginTop: 10,
+        marginBottom: 24,
+        opacity: 0.8,
+    },
+    exitActionsRow: {
+        flexDirection: 'row',
+        gap: 15,
+        width: '100%',
+    },
+    exitActionsRowCompact: {
+        gap: 10,
+    },
     scoreRowModal: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -2192,10 +2946,13 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         marginVertical: 4,
     },
-    infoButtonTop: {
-        padding: 10,
+    headerIconButton: {
+        width: 44,
+        height: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
         backgroundColor: 'rgba(0,0,0,0.05)',
-        borderRadius: 20,
+        borderRadius: 22,
     },
     infoText: {
         fontSize: 15,

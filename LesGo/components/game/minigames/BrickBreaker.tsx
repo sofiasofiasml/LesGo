@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Dimensions, TouchableOpacity, PanResponder } from 'react-native';
+import HighScoreModal from '@/components/game/HighScoreModal';
+import { getHighScores, HighScoreEntry, saveScore } from '@/utils/HighScoreManager';
 import { FontAwesome } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { getHighScores, saveScore, HighScoreEntry } from '@/utils/HighScoreManager';
-import HighScoreModal from '@/components/game/HighScoreModal';
+import React, { useEffect, useRef, useState } from 'react';
+import { Dimensions, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const GAME_HEIGHT = SCREEN_HEIGHT * 0.6;
@@ -16,6 +16,7 @@ const BRICK_COLS = 6;
 const BRICK_HEIGHT = 20;
 const BRICK_GAP = 5;
 const BRICK_WIDTH = (GAME_WIDTH - (BRICK_GAP * (BRICK_COLS + 1))) / BRICK_COLS;
+const IS_SMALL_SCREEN = SCREEN_HEIGHT < 760 || SCREEN_WIDTH < 360;
 
 interface BrickBreakerProps {
     visible: boolean;
@@ -29,7 +30,7 @@ export default function BrickBreaker({ visible, onClose, colors, currentPlayer =
     const [gameState, setGameState] = useState<'start' | 'playing' | 'gameover' | 'won'>('start');
     const [score, setScore] = useState(0);
     const [paddleX, setPaddleX] = useState((GAME_WIDTH - PADDLE_WIDTH) / 2);
-    const [ball, setBall] = useState({ x: GAME_WIDTH / 2, y: GAME_HEIGHT - 50, dx: 3, dy: -3 });
+    const [ball, setBall] = useState({ x: GAME_WIDTH / 2, y: GAME_HEIGHT - 50, dx: 5, dy: -5 });
     const [bricks, setBricks] = useState<{ id: string; x: number; y: number; active: boolean }[]>([]);
 
     // Timer and Score State
@@ -71,8 +72,8 @@ export default function BrickBreaker({ visible, onClose, colors, currentPlayer =
             }
         }
         setBricks(newBricks);
-        setBall({ x: GAME_WIDTH / 2, y: GAME_HEIGHT - 50, dx: 3, dy: -3 });
-        ballRef.current = { x: GAME_WIDTH / 2, y: GAME_HEIGHT - 50, dx: 3, dy: -3 };
+        setBall({ x: GAME_WIDTH / 2, y: GAME_HEIGHT - 50, dx: 5, dy: -5 });
+        ballRef.current = { x: GAME_WIDTH / 2, y: GAME_HEIGHT - 50, dx: 5, dy: -5 };
         setPaddleX((GAME_WIDTH - PADDLE_WIDTH) / 2);
         paddleRef.current = (GAME_WIDTH - PADDLE_WIDTH) / 2;
         setScore(0);
@@ -134,7 +135,7 @@ export default function BrickBreaker({ visible, onClose, colors, currentPlayer =
             const hitPoint = (x + BALL_SIZE / 2) - (paddleRef.current + PADDLE_WIDTH / 2);
             dx = dx + hitPoint * 0.1;
             // Cap speed
-            dx = Math.max(Math.min(dx, 6), -6);
+            dx = Math.max(Math.min(dx, 8), -8);
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         }
 
@@ -335,33 +336,51 @@ export default function BrickBreaker({ visible, onClose, colors, currentPlayer =
                         {/* Result Overlay */}
                         {(gameState === 'gameover' || gameState === 'won') && (
                             <View style={[styles.centerOverlay, { backgroundColor: 'rgba(0,0,0,0.8)' }]}>
-                                {isNewRecord && (
-                                    <View style={styles.newRecordBadge}>
-                                        <FontAwesome name="star" size={16} color="white" />
-                                        <Text style={styles.newRecordText}> ¡NUEVO RÉCORD! </Text>
-                                        <FontAwesome name="star" size={16} color="white" />
+                                <View style={styles.resultCard}>
+                                    {isNewRecord && (
+                                        <View style={styles.newRecordBadge}>
+                                            <FontAwesome name="star" size={16} color="white" />
+                                            <Text style={styles.newRecordText}> ¡NUEVO RÉCORD! </Text>
+                                            <FontAwesome name="star" size={16} color="white" />
+                                        </View>
+                                    )}
+                                    <Text
+                                        style={[
+                                            styles.resultText,
+                                            {
+                                                color: gameState === 'won' ? '#4CD964' : '#FF3B30',
+                                                fontSize: IS_SMALL_SCREEN ? 26 : 32,
+                                            }
+                                        ]}
+                                        numberOfLines={2}
+                                        adjustsFontSizeToFit
+                                        minimumFontScale={0.72}
+                                    >
+                                        {gameState === 'won' ? '¡VICTORIA!' : '¡HAS PERDIDO!'}
+                                    </Text>
+                                    <Text
+                                        style={[styles.subResultText, { fontSize: IS_SMALL_SCREEN ? 15 : 18 }]}
+                                        numberOfLines={3}
+                                        adjustsFontSizeToFit
+                                        minimumFontScale={0.75}
+                                    >
+                                        {gameState === 'won'
+                                            ? `Tiempo: ${finishTime}s\nRepartes 5 tragos`
+                                            : '¡Te toca BEBER!'}
+                                    </Text>
+                                    <TouchableOpacity
+                                        style={[styles.button, { backgroundColor: colors.purple, width: IS_SMALL_SCREEN ? '88%' : '80%' }]}
+                                        onPress={() => onClose(gameState === 'won')}
+                                    >
+                                        <Text style={styles.buttonText}>CONTINUAR</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.button, { backgroundColor: colors.orange, marginTop: 10, width: IS_SMALL_SCREEN ? '88%' : '80%' }]}
+                                        onPress={resetGame}
+                                    >
+                                        <Text style={styles.buttonText}>REINTENTAR</Text>
+                                    </TouchableOpacity>
                                     </View>
-                                )}
-                                <Text style={[styles.resultText, { color: gameState === 'won' ? '#4CD964' : '#FF3B30' }]}>
-                                    {gameState === 'won' ? '¡VICTORIA!' : '¡HAS PERDIDO!'}
-                                </Text>
-                                <Text style={styles.subResultText}>
-                                    {gameState === 'won'
-                                        ? `Tiempo: ${finishTime}s\nRepartes 5 tragos`
-                                        : '¡Te toca BEBER!'}
-                                </Text>
-                                <TouchableOpacity
-                                    style={[styles.button, { backgroundColor: colors.purple }]}
-                                    onPress={() => onClose(gameState === 'won')}
-                                >
-                                    <Text style={styles.buttonText}>CONTINUAR</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[styles.button, { backgroundColor: colors.orange, marginTop: 10 }]}
-                                    onPress={resetGame}
-                                >
-                                    <Text style={styles.buttonText}>REINTENTAR</Text>
-                                </TouchableOpacity>
                             </View>
                         )}
                     </View>
@@ -431,6 +450,14 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 10,
+    },
+    resultCard: {
+        width: '92%',
+        maxWidth: 360,
+        paddingHorizontal: 14,
+        paddingVertical: 16,
+        borderRadius: 14,
+        alignItems: 'center',
     },
     startText: {
         fontSize: 24,

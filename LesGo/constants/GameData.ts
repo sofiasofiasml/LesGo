@@ -3,10 +3,11 @@ export interface Card {
     text: string;
     type: 'challenge' | 'question' | 'rule' | 'viral';
     mode: 'binary' | 'statement' | 'rule'; // binary = Yes/No, statement = OK/Applies to me, rule = Accept
+    responseMode?: 'single' | 'dual'; // single = one button (e.g. Seguir), dual = two buttons
     drinkTrigger?: 'yes' | 'no' | 'always' | 'none';
     drinkAction?: string; // e.g. "Bebe 2 tragos"
     points?: number; // Points awarded for this card (default 1)
-    specialEffect?: 'double' | 'reverse' | 'skip' | 'steal' | 'bonus' | 'gift' | 'bomb' | 'star' | 'roulette' | 'minigame_brick' | 'minigame_flappy' | 'minigame_roulette' | 'minigame_tapper' | 'minigame_memory' | 'minigame_reflex' | 'minigame_stop' | 'minigame_box' | 'minigame_highlow' | 'minigame_potato' | 'minigame_sniper' | 'minigame_wire' | 'minigame_shakeit' | 'minigame_finger' | 'minigame_soccer' | 'minigame_smash'; // Special game mechanics
+    specialEffect?: 'double' | 'reverse' | 'skip' | 'steal' | 'bonus' | 'gift' | 'bomb' | 'star' | 'roulette' | 'minigame_brick' | 'minigame_flappy' | 'minigame_roulette' | 'minigame_tapper' | 'minigame_memory' | 'minigame_reflex' | 'minigame_stop' | 'minigame_box' | 'minigame_highlow' | 'minigame_potato' | 'minigame_sniper' | 'minigame_wire' | 'minigame_finger' | 'minigame_soccer' | 'minigame_tug' | 'minigame_balance' | 'minigame_pairs' | 'minigame_hippo' | 'minigame_color' | 'minigame_math'; // Special game mechanics
     category?: 'romantic' | 'spicy' | 'fun' | 'general';
     intensity?: 'soft' | 'medium' | 'spicy';
 }
@@ -720,6 +721,7 @@ export const GAME_CARDS: Card[] = [
         text: 'La última persona en tocar el suelo bebe.',
         type: 'challenge',
         mode: 'statement',
+        responseMode: 'single',
         drinkTrigger: 'none',
         category: 'general',
         intensity: 'medium',
@@ -1097,7 +1099,7 @@ export const GAME_CARDS: Card[] = [
     // 🎲 ROULETTE CARDS
     // ========================================================================
     {
-        id: 'r1',
+        id: 'rl1',
         text: '¡LA RULETA DECIDE! Giramos para ver quién se bebe este chupito.',
         type: 'challenge',
         mode: 'statement',
@@ -1108,7 +1110,7 @@ export const GAME_CARDS: Card[] = [
         points: 5
     },
     {
-        id: 'r2',
+        id: 'rl2',
         text: '¡CAOS TOTAL! La ruleta elige quien manda una foto vergonzosa al grupo.',
         type: 'challenge',
         mode: 'statement',
@@ -1119,7 +1121,7 @@ export const GAME_CARDS: Card[] = [
         points: 10
     },
     {
-        id: 'r3',
+        id: 'rl3',
         text: 'La ruleta elige a la "Esclava" del turno. Debe obedecer una orden del grupo.',
         type: 'challenge',
         mode: 'statement',
@@ -1130,7 +1132,7 @@ export const GAME_CARDS: Card[] = [
         points: 5
     },
     {
-        id: 'r4',
+        id: 'rl4',
         text: '¡INTERCAMBIO! La ruleta decide con quién te cambias de ropa (o una prenda).',
         type: 'challenge',
         mode: 'statement',
@@ -1141,7 +1143,7 @@ export const GAME_CARDS: Card[] = [
         points: 5
     },
     {
-        id: 'r5',
+        id: 'rl5',
         text: 'La ruleta decide quién tiene que hacer 10 sentadillas ahora mismo.',
         type: 'challenge',
         mode: 'statement',
@@ -1241,6 +1243,24 @@ export const GAME_CARDS: Card[] = [
         category: 'spicy',
         intensity: 'spicy',
         specialEffect: 'minigame_box'
+    },
+    {
+        id: 'mg11',
+        text: 'COLOR MATCH 🌈\nAcierta 5 colores antes de que acabe el tiempo.',
+        type: 'challenge',
+        mode: 'statement',
+        category: 'fun',
+        intensity: 'medium',
+        specialEffect: 'minigame_color'
+    },
+    {
+        id: 'mg12',
+        text: 'MATH SPRINT 🧮\nResuelve sumas rápidas para salvarte.',
+        type: 'challenge',
+        mode: 'statement',
+        category: 'general',
+        intensity: 'medium',
+        specialEffect: 'minigame_math'
     },
     {
         id: 'n36',

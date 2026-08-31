@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "LesGo",
+    "name": "Lesbo Party",
     "slug": "LesGo",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -31,13 +31,44 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-1311186232922681~1788599049",
+          "iosAppId": "ca-app-pub-xxxxxxxxxxxxxxxx~xxxxxxxxxx"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
       "router": {},
+      "revenuecat": {
+        "iosApiKey": "",
+        "androidApiKey": "",
+        "entitlements": {
+          "minigames": "pro_minigames",
+          "questions": "pro_questions",
+          "removeAds": "remove_ads"
+        },
+        "products": {
+          "minigames": "lesgo_pro_minigames",
+          "questions": "lesgo_pro_questions",
+          "removeAds": "lesgo_remove_ads"
+        }
+      },
+      "ads": {
+        "androidAppId": "ca-app-pub-1311186232922681~1788599049",
+        "iosAppId": "ca-app-pub-xxxxxxxxxxxxxxxx~xxxxxxxxxx",
+        "androidBannerId": "ca-app-pub-1311186232922681/3269201676",
+        "iosBannerId": "ca-app-pub-xxxxxxxxxxxxxxxx/xxxxxxxxxx",
+        "androidInterstitialId": "ca-app-pub-1311186232922681/1956120008",
+        "iosInterstitialId": "ca-app-pub-xxxxxxxxxxxxxxxx/xxxxxxxxxx",
+        "androidRewardedId": "ca-app-pub-1311186232922681/4574544481",
+        "iosRewardedId": "ca-app-pub-xxxxxxxxxxxxxxxx/xxxxxxxxxx"
+      },
       "eas": {
         "projectId": "0bdc2546-e4c8-4dec-a3c0-1ab0a6a6509a"
       }
